@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 # Class to handle the data for loading and further processing
 class DataDLC:
     ''' Class to handle the data for loading and further processing. '''
-    def __init__(self, file):
+    def __init__(self, file = str):
         ''' Constructor of the DataDLC class. It loads the data from the .h5 files and preprocesses it to build the graphs.
 
             Args:
@@ -693,13 +693,15 @@ class DLCDataLoader(DataLoader):
     
 
     ####### TO OPTIMISE, IT TAKES TOO LONG, PROBABLY BECAUSE OF THE DATA CLASS MANEGMENT, IT TAKES TO LONG TO ACCESS THE DATA #######
-    def build_graph_2(self, data_dlc):
+    def build_graph_2(self, data_dlc: DataDLC, spatio_temporal_adj: pd.MultiIndex, window_size: int, stride: int) -> Tuple[torch.Tensor, LongTensor, torch.Tensor]: 
         ''' 
         Function that builds the graph from an instance of DataDLC class.
 
         Args:
             data_dlc (DataDLC): The instance of the DataDLC class.
-            spatio_temporal_adj (MultiIndex): The spatio-temporal adjacency matrix.
+            spatio_temporal_adj (pd.MultiIndex): The spatio-temporal adjacency matrix.
+            window_size (int): The window size for the temporal graph.
+            stride (int): The stride for the temporal graph.
 
         Returns:
             node_features (torch.Tensor): The node features of the graph.
@@ -783,16 +785,86 @@ class DLCDataLoader(DataLoader):
 
         return node_features, edge_index, frame_mask
 
+    def build_graph_3(self, data_dlc: DataDLC, spatial_adj, window_size: int, stride: int) -> Tuple[torch.Tensor, torch.LongTensor, torch.Tensor]:
+        ''' 
+        Function that builds the graph from an instance of DataDLC class.
+
+        Args:
+            data_dlc (DataDLC): The instance of the DataDLC class.
+            spatial_adj (pd.MultiIndex): The spatial adjacency matrix.
+            window_size (int): The window size for the temporal graph.
+            stride (int): The stride for the temporal graph.
+
+        Returns:
+            node_features (torch.Tensor): The node features of the graph.
+            edge_index (LongTensor): Graph connectivity in COO format with shape [2, num_edges].
+            frame_mask (torch.Tensor): The frame mask of the graph.
+        '''
+
+        # pad window_size//2 frames at the beginning and end of the video to avoid edge cases.
+        data_dlc.coords = pd.concat([pd.DataFrame(np.nan, index=range(window_size//2), columns=data_dlc.coords.columns), data_dlc.coords, pd.DataFrame(np.nan, index=range(window_size//2), columns=data_dlc.coords.columns)])
+        data_dlc.coords = data_dlc.coords.reset_index(drop=True) # reset index to have a continuous index (REMEMBER THAT WE PADDED THE DATA, SO THE INDEX ARE SHIFTED WRT THE FRAMES)
+
+        # Build the graphs
+        node_features = []
+        edge_index = []
+
+        # If spatial adjacency matrix is not provided:
+        if spatial_adj is None:
+            # Adjency matrix will be a multiIndex dataframe, the first level will be the individuals, and the sencond the body parts
+            nodes = data_dlc.coords.drop(columns=['Tail_1', 'Tail_2', 'Tail_3', 'Tail_4', 'Tail_tip'], level=1).columns.droplevel(2).unique() # Get rid of the 'Tail' nodes
+            spatial_adj = pd.DataFrame(index=nodes, columns=nodes)
+            spatial_adj = spatial_adj.astype(bool)
+            spatial_adj.loc[:,:] = False
+
+            # Connect all the nodes of the same individual
+            for ind in data_dlc.individuals:
+                spatial_adj.loc[ind, ind] = True
+
+            spatial_adj.loc[(slice(None), 'Nose'), (slice(None), 'Nose')] = True
+            spatial_adj.loc[(slice(None), 'Tail_base'), (slice(None), 'Tail_base')] = True
+            spatial_adj.loc[(slice(None), 'Nose'), (slice(None), 'Tail_base')] = True
+            spatial_adj.loc[(slice(None), 'Tail_base'), (slice(None), 'Nose')] = True
+                            
+
+        # Iterate over the frames
+        for frame in tqdm.tqdm(range(window_size//2, data_dlc.n_frames + window_size//2, stride)): # We start at window_size//2 to avoid the padding
+            # Iterate over the individuals
+            for ind_idx, individual in enumerate(data_dlc.individuals):
+                # Iterate over the body parts
+                for body_part_idx, body_part in enumerate(data_dlc.body_parts):
+                    if np.isnan(data_dlc.coords.loc[frame, (individual, body_part)]).any():
+                        continue
+                    # Add the node features
+                    node_features.append(data_dlc.coords.loc[frame, (individual, body_part)].values)
+                    current_node = len(node_features) - 1
+                    # Add all the edges possible for the current node
+                    for body_part_2 in data_dlc.body_parts[:body_part_idx]:
+                        if np.isnan(data_dlc.coords.loc[frame, (individual, body_part_2)]).any():
+                            continue
+                        node_2 = data_dlc.coords.loc[frame, (individual, body_part_2)]
+                        edge_index.append([current_node, node_2])
+                        edge_index.append([node_2, current_node])
+                    # Then we add the edges between the nodes of the same body part in the previous frame
+                    if frame>0:
+                        node_2 = data_dlc.coords.loc[frame-1, (individual, body_part)]
+                        edge_index.append([current_node, node_2])
+                        edge_index.append([node_2, current_node])
+
+        
+
+
+
+
     def load_data_2(self):
         '''
         Function that loads the data from the .h5 files and preprocesses it to build the graphs.
         It uses the DataDLC class to load the data. 
         '''                
         
-        print(f"We have {self.n_files} files")
         for i, file in tqdm.tqdm(enumerate(self.files)):
             # Load the data
-            print(f"Loading file {file}")
+            print(f"Loading file {file}", end='\r')
             # Name of the test
             name_file = file.split('DLC')[0]
             # Load the behaviour
