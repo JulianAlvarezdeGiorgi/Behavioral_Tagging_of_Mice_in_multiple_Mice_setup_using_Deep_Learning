@@ -1,5 +1,5 @@
 # Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning
-##Identification and temporal classification of social behavior of different mice with different pathologies in order to study them.
+*Identification and temporal classification of social behavior of different mice with different pathologies in order to study them.*
 
 The study of social behavior in mice is a crucial aspect of neuroscience research, particularly in understanding the effects of various pathologies or treatments. One of the key methods used in this research is the open-field test, where the behavior and social interactions of mice are observed in an open, stimulus-free environment. Traditionally, analyzing these tests is a manual, time-consuming process, with increasing complexity as the number of mice and interactions grows. Additionally, subjective interpretations can introduce bias, leading to inconsistencies in the results.
 
