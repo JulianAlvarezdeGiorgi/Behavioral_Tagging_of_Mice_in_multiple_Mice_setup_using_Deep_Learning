@@ -3,7 +3,7 @@
 from torch_geometric.data import Data, DataLoader
 from torch_geometric.utils import from_scipy_sparse_matrix
 import time
-from statsmodels.tsa.arima.model import ARIMA
+#from statsmodels.tsa.arima.model import ARIMA
 
 import h5py
 import numpy as np
@@ -486,14 +486,13 @@ class DLCDataLoader(DataLoader):
         
         return pd.read_csv(os.path.join(self.root, file))
     
-    def save_graphs(self, path):
-        ''' Function that saves the graphs to a .pt file.
+    def save_dataset(self):
+        ''' Function that saves the dataset.
 
             Args:
-                path (str): The path to save the file.'''
-        
-        for i, data in enumerate(self.dataset):
-            torch.save(data, os.path.join(path, f'graph_{data.file}.pt'))
+                path (str): The path to save the dataset.'''
+        path = os.path.join(self.root, 'dataset.pt')
+        torch.save(self.dataset, path)
 
     def preprocess(self):
         ''' Function that preprocesses the data. '''

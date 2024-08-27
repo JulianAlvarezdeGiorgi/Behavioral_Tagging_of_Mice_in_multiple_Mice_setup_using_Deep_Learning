@@ -3,7 +3,7 @@
 from torch_geometric.data import Data, DataLoader
 from torch_geometric.utils import from_scipy_sparse_matrix
 import time
-from statsmodels.tsa.arima.model import ARIMA
+#from statsmodels.tsa.arima.model import ARIMA
 
 import h5py
 import numpy as np
