@@ -21,21 +21,20 @@ import matplotlib.pyplot as plt
 # Class to handle the data for loading and further processing
 class DataDLC:
     ''' Class to handle the data for loading and further processing. '''
-    def __init__(self, file = str):
+    def __init__(self, file = str, detect_jumps = False):
         ''' Constructor of the DataDLC class. It loads the data from the .h5 files and preprocesses it to build the graphs.
 
             Args:
                 file (str): The file to load.'''
         self.file = file
-        self.load_data()
+        self.load_data(detect_jumps)
 
-    def load_data(self):
+    def load_data(self, detect_jumps):
         ''' Function that loads the data from the .h5 files and preprocesses it to build the graphs. '''
         
         loaded_tab = pd.read_hdf(self.file) # Load the .h5 file
         # Get the scorers
         self.scorer = loaded_tab.columns.levels[0]
-        print(self.scorer)
         if len(self.scorer) > 1:
             print('More than one scorer in the .h5 file, the scorers are: ', self.scorer.values)
         #Drop scorer (first level of the columns)
@@ -69,6 +68,9 @@ class DataDLC:
         # Eliminate drop y and 'likelihood' columns
         self.mask_jumps = self.mask_jumps.iloc[:,::3]
         self.mask_jumps = self.mask_jumps.droplevel(2, axis=1)
+
+        if detect_jumps:
+            self.detect_isolated_jumps()
 
     def compute_center_of_mass(self):
         # Save the coordinates per individual
@@ -532,6 +534,71 @@ class DataDLC:
             
         return diff
 
+    def create_video_per_event(self, video_path, output_path, events, split_behaviour = False):
+        ''' Function that creates a video with the tagged events on each frame. If split_behaviour is True, the video will be splitted by the events.
+
+            Args:
+                video_path (str): The path to the video.
+                output_path (str): The path to save the video.
+                events (pd.DataFrame): The events to plot.
+                split_behaviour (bool): If True, the video will be splitted by the events.
+        '''
+        
+        # Open the video
+        cap = cv2.VideoCapture(video_path)
+
+        # Get the width and height of the video
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+       
+
+        # Define the individuals
+        colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+
+        # set the frame position to the first frame
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        # Iterate over the frames
+
+        # ckeck if the frames of the df are the same as the video
+        if len(events) != self.n_frames:
+            print('The number of frames in the events dataframe is different than the video')
+            return
+        
+        event_names = events.columns.tolist()
+        if split_behaviour:
+            for event_name in event_names[1:]:
+                # set the frame position to the first frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                
+                if events[event_name].sum() == 0:
+                    print(f'The event {event_name} is not present in the video')
+                    continue
+
+                output_video = os.path.join(output_path, video_path.split('\\')[-1].split('.')[0] + f'_{event_name}.avi')
+                out = cv2.VideoWriter(output_video, cv2.VideoWriter_fourcc(*'XVID'), 20.0, (width, height))
+                for i in tqdm.tqdm(range(self.n_frames)):
+                    # Read the frame
+                    ret, frame = cap.read()
+                    # Get the event
+                    event = events.loc[i, event_name]
+                    if event == 1:
+                        # write the event in the frame
+                        out.write(frame)
+                out.release()
+        else:
+            output_path = os.path.join(output_path, video_path.split('/')[-1].split('.')[0] + f'_events.avi')
+            out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'XVID'), 20.0, (width, height))
+            for i in tqdm.tqdm(range(self.n_frames)):
+                # Read the frame
+                ret, frame = cap.read()
+                # Get the event
+                events_in_frame = event_names[np.where(events.loc[i].values)[0]]
+                for e, event in enumerate(events_in_frame):
+                    # write the event in the frame
+                    cv2.putText(frame, event, (50 + 2*e, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
+                out.write(frame)
+            out.release()
 
 
             

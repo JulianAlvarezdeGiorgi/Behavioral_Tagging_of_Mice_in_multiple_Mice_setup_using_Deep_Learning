@@ -112,7 +112,7 @@ class DLCDataLoader(DataLoader):
 
             # Load the data
             dlc = DataDLC.DataDLC(os.path.join(self.root, file))
-            dlc.preprocess()
+            # TO DO dlc.preprocess()
 
             dlc.drop_tail_bodyparts()
             
