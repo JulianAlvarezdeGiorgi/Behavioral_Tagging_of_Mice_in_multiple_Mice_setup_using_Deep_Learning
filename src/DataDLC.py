@@ -54,6 +54,8 @@ class DataDLC:
         self.body_parts = self.coords.columns.levels[1] # Get the body parts
         self.n_body_parts = len(self.body_parts) # Get the number of body parts
         self.n_frames = len(self.coords) # Get the number of frames
+        
+        #self.cast_boudaries() # Set the boundaries of the individuals
 
         self.clean_inconsistent_nans() # Clean the inconsistent NaNs
 
@@ -90,6 +92,16 @@ class DataDLC:
             ind.loc[:, ('Center of mass', 'x')] = x_mean
             ind.loc[:, ('Center of mass', 'y')] = y_mean
             ind.loc[:, ('Center of mass', 'likelihood')] = likelihood_mean
+    
+    def cast_boudaries(self):
+        ''' Function that sets the boundaries of the coordinates of the individuals. Typically, is [0,640] for x and [0,480] for y. '''
+
+        # Cast the outliers to the boundaries
+        for ind in self.individuals:
+            for body_part in self.body_parts:
+                self.coords[ind].loc[:, (body_part, 'x')] = np.clip(self.coords[ind].loc[:, (body_part, 'x')], 0, 640)
+                self.coords[ind].loc[:, (body_part, 'y')] = np.clip(self.coords[ind].loc[:, (body_part, 'y')], 0, 480)
+
 
     def clean_inconsistent_nans(self):
         ''' If a coordinate x or y is NaN, we set to NaN the other coordinate and the likelihood. '''
@@ -122,7 +134,7 @@ class DataDLC:
                 self.coords[ind].loc[:, (body_part, 'x')] = (x - x.min()) / (x.max() - x.min())
                 self.coords[ind].loc[:, (body_part, 'y')] = (y - y.min()) / (y.max() - y.min())
 
-        # Min-Max Normalization for
+    ## MAYBE FOR LATER
     def detect_outliers(self, imputation=False):
         ''' Function that detects the outliers by fitting an ARMA model to each time-series and discarding the points are farther than 3 standard deviations from the prediction.
             
@@ -156,6 +168,7 @@ class DataDLC:
                 else:
                     self.coords[ind].loc[residuals_x > 3 * std_x, (body_part, 'x')] = np.nan
                     self.coords[ind].loc[residuals_y > 3 * std_y, (body_part, 'y')] = np.nan
+
 
     def detect_isolated_jumps(self, threshold_soft_min = 30, threshold_soft_max = 15, imputation = False):
         '''
@@ -336,7 +349,7 @@ class DataDLC:
                         # Set to NaN the tracklet
                         self.coords[ind].loc[tracklets[t]['Frames'], (body_part, 'x')] = np.nan
                         self.coords[ind].loc[tracklets[t]['Frames'], (body_part, 'y')] = np.nan
-                        self.coords[ind].loc[tracklets[t]['Frames'], (body_part, 'likelihood')] = 0
+                        self.coords[ind].loc[tracklets[t]['Frames'], (body_part, 'likelihood')] = np.nan
                         self.mask_jumps[ind].loc[tracklets[t]['Frames'], body_part] = True
 
                         if verbose:
@@ -460,9 +473,6 @@ class DataDLC:
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = cv2.VideoWriter(output_path, fourcc, 20.0, (width, height))
 
-        # Define the individuals
-        colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
-
         if frames is None:
             frames = range(self.n_frames)
         else:
@@ -487,14 +497,14 @@ class DataDLC:
                         # If Nan, skip                    
                         if not (np.isnan(x_old) or np.isnan(y_old)):
                             # Draw the body parts
-                            cv2.circle(frame, (int(x_old), int(y_old)), 6, (255, 255, j*255), -1)
+                            cv2.circle(frame, (int(x_old), int(y_old)), 6, (120, 120, j*120), -1)
                     if not (np.isnan(x) or np.isnan(y)):
                         # Draw the body parts
-                        cv2.circle(frame, (int(x), int(y)), 4, colors[j], -1)
+                        cv2.circle(frame, (int(x), int(y)), 4, (255, 255, j*255), -1)
+                # Add legend to the frame
+                cv2.putText(frame, ind, (50, 50 + 50*j), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, j*255), 2, cv2.LINE_AA)
 
-            # Add legend to the frame
-            cv2.putText(frame, 'Individual 1', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
-            cv2.putText(frame, 'Individual 2', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            
             # Write the frame
             out.write(frame)
 
