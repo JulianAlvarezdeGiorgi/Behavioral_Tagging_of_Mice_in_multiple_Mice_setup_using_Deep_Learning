@@ -55,12 +55,13 @@ class DataDLC:
         self.n_body_parts = len(self.body_parts) # Get the number of body parts
         self.n_frames = len(self.coords) # Get the number of frames
         
-        #self.cast_boudaries() # Set the boundaries of the individuals
+        self.cast_boudaries() # Set the boundaries of the individuals
 
         self.clean_inconsistent_nans() # Clean the inconsistent NaNs
 
         # Save old coordinates
         self.old_coords = self.coords.copy()
+
 
         # Create a mask to indicate where jumps are detected
         self.mask_jumps = pd.DataFrame(index=self.coords.index, columns=self.coords.columns)
@@ -73,6 +74,11 @@ class DataDLC:
 
         if detect_jumps:
             self.detect_isolated_jumps()
+            self.remove_outlier_bouts()
+            
+        self.fill_nans() # Fill the NaNs with 0
+
+        self.normalize() # Normalize the coordinates
 
     def compute_center_of_mass(self):
         # Save the coordinates per individual
@@ -113,7 +119,27 @@ class DataDLC:
                 self.coords[ind].loc[frames_to_set_nan, (body_part, 'x')] = np.nan
                 self.coords[ind].loc[frames_to_set_nan, (body_part, 'y')] = np.nan
                 self.coords[ind].loc[frames_to_set_nan, (body_part, 'likelihood')] = np.nan
+    
+    def fill_nans(self):
+        ''' Function that fills the NaNs with 0. '''
+        self.coords = self.coords.fillna(0)
 
+    def normalize(self):
+        ''' Function that normalizes the coordinates of the individuals. '''
+        for ind in self.individuals:
+            # Access the DataFrame for the current individual
+            df = self.coords[ind]
+            
+            # Normalize all 'x' and 'y' values across the DataFrame
+            for body_part in self.body_parts:
+                # Safely access and normalize x and y coordinates
+                if (body_part, 'x') in df.columns:
+                    df[(body_part, 'x')] = df[(body_part, 'x')] / 640  # Normalize x
+                if (body_part, 'y') in df.columns:
+                    df[(body_part, 'y')] = df[(body_part, 'y')] / 480  # Normalize y
+            
+            # Reassign the normalized DataFrame back to self.coords[ind]
+            self.coords[ind] = df
 
     def center(self):
         ''' Function that centers the individuals in the configuration. '''

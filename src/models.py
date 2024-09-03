@@ -15,14 +15,14 @@ class GATEncoder(nn.Module):
         self.relu = nn.ReLU()
         
         self.gatenc1 = GATv2Conv(in_channels=self.n_in, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
-        self.gatenc2 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
-        self.gatenc3 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
-        self.gatenc4 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
+        self.gatenc2 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=False)
+        #self.gatenc3 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
+        #self.gatenc4 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
 
-        self.res_conn = nn.ModuleList()  # residual connections
-        for _ in range(1):
-            self.res_conn.append(nn.Linear(self.n_hidden * attention_hidden, self.n_hidden * attention_hidden))
-            self.res_conn.append(nn.ReLU())
+        #self.res_conn = nn.ModuleList()  # residual connections
+        #for _ in range(1):
+        #    self.res_conn.append(nn.Linear(self.n_hidden * attention_hidden, self.n_hidden * attention_hidden))
+        #    self.res_conn.append(nn.ReLU())
 
 
 
@@ -40,8 +40,8 @@ class GATEncoder(nn.Module):
         x = self.relu(x)
         #x = self.res_conn[0](x) + x1
         #x = self.res_conn[1](x)
-        x = self.gatenc3(x, edge_index)
-        x = self.relu(x)
+        #x = self.gatenc3(x, edge_index)
+        #x = self.relu(x)
         #x = self.res_conn[4](x) + x
         #x = self.res_conn[5](x)
         #x = self.gatenc4(x, edge_index)
@@ -50,11 +50,13 @@ class GATEncoder(nn.Module):
         #x = self.res_conn[7](x)
         
 
-        # Aggrgate the node features for each frame
-        x = global_mean_pool(x, frame_mask)
+        # Aggrgate the node features for each frame, Only interested in the ENC-DEC model
+        #x = global_mean_pool(x, frame_mask) 
+        # Keep only where the frame mask is 1
+        x = x[frame_mask]
 
-        x = self.out(x)
-        x = self.relu(x)
+        #x = self.out(x)
+        #x = self.relu(x)
 
         return x
 
@@ -142,15 +144,14 @@ class ClassificationHead(nn.Module):
         self.hidden1 = nn.Linear(n_latent, nhid)
         self.hidden2 = nn.Linear(nhid, nout)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax()
      
 
     def forward(self, z):
         x = self.hidden1(z)
         x = self.relu(x)
         x = self.hidden2(x)
-        x = self.sigmoid(x)
-        return x
+        return self.softmax(x)
     
 class GraphClassifier(nn.Module):
     def __init__(self, encoder, classifier):
@@ -158,9 +159,13 @@ class GraphClassifier(nn.Module):
         self.encoder = encoder
         self.classifier = classifier
 
-    def forward(self, x, edge_index, frame_mask):
+    def forward(self, batch):
+        x, edge_index, frame_mask, graph_batch = batch.x, batch.edge_index, batch.frame_mask, batch.batch
         embbed = self.encoder(x, edge_index, frame_mask)
-        return self.classifier(embbed)
+        #embbed = global_mean_pool(embbed, graph_batch, size = graph_batch.max().item()+1)
+        # concatenate the embeddings for each frame
+        
+        return self.classifier(embbed.flatten())
 
     def loss(self, y, y_pred):
         return nn.CrossEntropyLoss()(y_pred, y) # Overlapping multi-class classification
