@@ -14,8 +14,8 @@ class GATEncoder(nn.Module):
         self.n_out = nout
         self.relu = nn.ReLU()
         
-        self.gatenc1 = GATv2Conv(in_channels=self.n_in, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
-        self.gatenc2 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=False)
+        self.gatenc1 = GATv2Conv(in_channels=self.n_in, out_channels=self.n_hidden, heads=self.attention_hidden, dropout=self.dropout, concat=True)
+        self.gatenc2 = GATv2Conv(in_channels=self.n_hidden * self.attention_hidden, out_channels=self.n_hidden, heads=self.attention_hidden, dropout=self.dropout, concat=True)
         #self.gatenc3 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
         #self.gatenc4 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
 
@@ -26,7 +26,7 @@ class GATEncoder(nn.Module):
 
 
 
-        self.out = nn.Linear(self.n_hidden * attention_hidden, self.n_out)
+        #self.out = nn.Linear(self.n_hidden * attention_hidden, self.n_out)
 
         
 
@@ -53,7 +53,7 @@ class GATEncoder(nn.Module):
         # Aggrgate the node features for each frame, Only interested in the ENC-DEC model
         #x = global_mean_pool(x, frame_mask) 
         # Keep only where the frame mask is 1
-        x = x[frame_mask]
+        #x = x[frame_mask] 
 
         #x = self.out(x)
         #x = self.relu(x)
@@ -162,10 +162,11 @@ class GraphClassifier(nn.Module):
     def forward(self, batch):
         x, edge_index, frame_mask, graph_batch = batch.x, batch.edge_index, batch.frame_mask, batch.batch
         embbed = self.encoder(x, edge_index, frame_mask)
-        #embbed = global_mean_pool(embbed, graph_batch, size = graph_batch.max().item()+1)
+        # readout the embeddings for each graph
+        embbed = global_mean_pool(embbed, graph_batch, size = graph_batch.max().item()+1)
         # concatenate the embeddings for each frame
         
-        return self.classifier(embbed.flatten())
+        return self.classifier(embbed)
 
     def loss(self, y, y_pred):
         return nn.CrossEntropyLoss()(y_pred, y) # Overlapping multi-class classification
@@ -174,6 +175,26 @@ class GraphClassifier(nn.Module):
         y_pred = (y_pred > threshold).float()
         return torch.sum(y == y_pred).item() / len(y)
         
+    
+class SimpleMLPforGraph(nn.Module):
+    def __init__(self, n_in, n_hid, n_out):
+        super(SimpleMLPforGraph, self).__init__()
+        self.hidden1 = nn.Linear(n_in, n_hid)
+        self.hidden2 = nn.Linear(n_hid, n_hid)
+        self.out = nn.Linear(n_hid, n_out)
+        self.relu = nn.ReLU()
+        self.softmax = nn.Softmax()
+        
+    def forward(self, batch):
+        x, edge_index, frame_mask, graph_batch = batch.x, batch.edge_index, batch.frame_mask, batch.batch
+        x = x[frame_mask == 2]
+        x = x.flatten()
+        x = self.hidden1(x)
+        x = self.relu(x)
+        x = self.hidden2(x)
+        x = self.relu(x)
+        x = self.out(x)
+        return self.softmax(x)
     
 
 

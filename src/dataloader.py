@@ -11,6 +11,7 @@ import os
 import torch
 #import utils as ut
 import pandas as pd
+import numpy as np
 import tqdm
 import cv2
 import matplotlib.pyplot as plt
@@ -43,6 +44,7 @@ class DLCDataLoader:
         self.batch_size = batch_size # Batch size
         self.num_workers = num_workers # Number of workers for the DataLoader
         self.device = device # Device to load the data
+
         self.behaviour = behaviour # Behaviour to load
 
         # if load_dataset, load the dataset from the .pkl file
@@ -192,6 +194,7 @@ class DLCDataLoader:
 
                     # Build the graph
                     node_features, edge_index, frame_mask = self.build_graph_4(coords[j:j+self.window_size])
+                    frame_mask += j
 
                     # Build the data object
                     data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window[self.behaviour], dtype=torch.long))
@@ -277,7 +280,7 @@ class DLCDataLoader:
             Also we have edges between the nodes of the same body part accross adjecent frames.
 
             Args:
-                coords (np.array): The coordinates of the individuals.
+                coords (np.ndarray): The coordinates of the individuals.
 
             Returns:
                 node_features (torch.Tensor): The node features of the graph.
@@ -313,7 +316,9 @@ class DLCDataLoader:
             for j in range(n_body_parts):
                 for k in range(n_frames):
                     node = i * n_body_parts * n_frames + j * n_frames + k
-                    node_features[node, :3] = torch.from_numpy(coords[k, i, j])
+                    #node_features[node, :3] = torch.from_numpy(coords[k, i, j])
+                    node_features[node, :3] = torch.tensor(coords[k, i, j])
+                    #node_features[node, :3] = coords[k, i, j]
                     node_features[node, 3] = i
                     frame_mask[node] = k
 
