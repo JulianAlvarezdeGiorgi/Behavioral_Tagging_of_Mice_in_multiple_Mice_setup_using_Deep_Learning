@@ -164,6 +164,8 @@ class DLCDataLoader:
             else:
                 behaviour = None
                 print(f"No behaviour file for {name_file}")
+            if self.behaviour is not None:
+                behaviour = behaviour[self.behaviour]
 
             data_dlc = DataDLC.DataDLC(os.path.join(self.root, file))
 
@@ -183,7 +185,8 @@ class DLCDataLoader:
                     # Build the graph
                     node_features, edge_index, frame_mask = self.build_graph_4(coords)
                     # Build the data object
-                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour= torch.tensor(behaviour[self.behaviour], dtype=torch.long))
+
+                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour= torch.tensor(behaviour, dtype=torch.long))
                     self.data_list.append(data)
                     continue
 
@@ -197,7 +200,7 @@ class DLCDataLoader:
                     frame_mask += j
 
                     # Build the data object
-                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window[self.behaviour], dtype=torch.long))
+                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window, dtype=torch.long))
                     self.data_list.append(data)
             else:
                 self.data_list.append((data_dlc.coords, behaviour))
@@ -304,13 +307,15 @@ class DLCDataLoader:
         # Initialize the node features
         node_features = torch.zeros(n_nodes, 4, dtype=torch.float32)
         # Initialize the edge index
-        edge_index = torch.zeros(2, n_edges, dtype=int)
+        #edge_index = torch.zeros(2, n_edges, dtype=int)
+        edge_list = []
 
         # Nose index, Tail index
         idx_nose = 0
         idx_tail = n_body_parts - 2 # The last body part is the center of mass, the tail is the one before (if all the other body parts where dropped)
 
         edge = 0
+        
         # Fill the node features
         for i in range(n_individuals):
             for j in range(n_body_parts):
@@ -322,40 +327,63 @@ class DLCDataLoader:
                     node_features[node, 3] = i
                     frame_mask[node] = k
 
+                    # Self-loops
+                    edge_list.append((node, 
+                                      node))
+                    # edge_index[0, edge] = node
+                    # edge_index[1, edge] = node
+                    edge += 1
+
                     # Edges between the nodes of the same individual in the same frame, only the nodes already created
                     for l in range(0, j):
-                        edge_index[0, edge] = node
-                        edge_index[1, edge] = i * n_body_parts * n_frames + l * n_frames + k
+                        edge_list.append((node, 
+                                          i * n_body_parts * n_frames + l * n_frames + k))
+                        # edge_index[0, edge] = node
+                        # edge_index[1, edge] = i * n_body_parts * n_frames + l * n_frames + k
                         edge += 1
                     # Edges between the nodes of the same body part accross adjecent frames
                     if k < n_frames - 1:
-                        edge_index[0, edge] = node
-                        edge_index[1, edge] = node + 1
+
+                        edge_list.append((node,
+                                           node + 1))
+                        # edge_index[0, edge] = node
+                        # edge_index[1, edge] = node + 1
+                        
                         edge += 1
 
                     if j == idx_nose:
                         # Nose-Nose, Nose-Tail, Tail-Tail edges between individuals
                         for i2 in range(0, i):
                             # Nose
-                            edge_index[0, edge] = i * n_body_parts * n_frames + idx_nose * n_frames
-                            edge_index[1, edge] = i2 * n_body_parts * n_frames + idx_nose * n_frames
+                            edge_list.append((i * n_body_parts * n_frames + idx_nose * n_frames, 
+                                              i2 * n_body_parts * n_frames + idx_nose * n_frames))
+                            # edge_index[0, edge] = i * n_body_parts * n_frames + idx_nose * n_frames
+                            # edge_index[1, edge] = i2 * n_body_parts * n_frames + idx_nose * n_frames
                             edge += 1
                     
                     if j == idx_tail:
                         # Tail
                         for i2 in range(0, i):
-                            edge_index[0, edge] = i * n_body_parts * n_frames + idx_tail * n_frames + k
-                            edge_index[1, edge] = i2 * n_body_parts * n_frames + idx_tail * n_frames + k
+                            edge_list.append((i * n_body_parts * n_frames + idx_tail * n_frames + k,
+                                               i2 * n_body_parts * n_frames + idx_tail * n_frames + k ))
+                            # edge_index[0, edge] = i * n_body_parts * n_frames + idx_tail * n_frames + k
+                            # edge_index[1, edge] = i2 * n_body_parts * n_frames + idx_tail * n_frames + k
                             edge += 1
                         # Nose-Tail
                         for i2 in range(0, i):
-                            edge_index[0, edge] = i * n_body_parts * n_frames + idx_nose * n_frames + k
-                            edge_index[1, edge] = i2 * n_body_parts * n_frames + idx_tail * n_frames + k
+                            edge_list.append((i * n_body_parts * n_frames + idx_nose * n_frames + k,
+                                               i2 * n_body_parts * n_frames + idx_tail * n_frames + k))
+                            # edge_index[0, edge] = i * n_body_parts * n_frames + idx_nose * n_frames + k
+                            # edge_index[1, edge] = i2 * n_body_parts * n_frames + idx_tail * n_frames + k
                             edge += 1
 
-                            edge_index[0, edge] = i2 * n_body_parts * n_frames + idx_nose * n_frames + k
-                            edge_index[1, edge] = i * n_body_parts * n_frames + idx_tail * n_frames + k
+                            edge_list.append((i2 * n_body_parts * n_frames + idx_nose * n_frames + k,
+                                               i * n_body_parts * n_frames + idx_tail * n_frames + k))
+                            # edge_index[0, edge] = i2 * n_body_parts * n_frames + idx_nose * n_frames + k
+                            # edge_index[1, edge] = i * n_body_parts * n_frames + idx_tail * n_frames + k
                             edge += 1
+
+        edge_index = torch.tensor(edge_list, dtype=int).T
 
         return node_features, edge_index, frame_mask
 
