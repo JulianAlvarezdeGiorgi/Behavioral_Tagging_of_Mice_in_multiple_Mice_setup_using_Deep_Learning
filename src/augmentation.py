@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def merge_symetric_behaviours(indx_behaviour1, indx_behaviour2, dataset):
 
@@ -25,23 +26,57 @@ def merge_symetric_behaviours(indx_behaviour1, indx_behaviour2, dataset):
             # We create a new sample, both behaviours are active
             new_sample = dataset[indx2].clone()
             # Set all behaviours to 0
-            new_sample.behaviour = np.zeros(len(new_sample.behaviour))
-            new_sample.behaviour[indx_behaviour1] = 1
+            new_sample.behaviour = torch.zeros(new_sample.behaviour.shape, dtype=torch.long, device=device)
+            new_sample.behaviour[indx_behaviour1] = torch.tensor(1, dtype=torch.long, device=device)
             # Replace 0 by 1, and 1 by 0
-            new_sample.x[:,3][new_sample.x[:,3] == 0] = 2
-            new_sample.x[:,3][new_sample.x[:,3] == 1] = 0
-            new_sample.x[:,3][new_sample.x[:,3] == 2] = 1
+            new_sample.x[:,3][new_sample.x[:,3] == 0] = torch.tensor(2)
+            new_sample.x[:,3][new_sample.x[:,3] == 1] = torch.tensor(0)
+            new_sample.x[:,3][new_sample.x[:,3] == 2] = torch.tensor(1)
+            # new sample as a Dataset object
+            
             dataset.append(new_sample)
         else:
             # We leave the sample but swap the identity of the individuals and activate the first behaviour
-            dataset[indx2].behaviour[indx_behaviour1] = 1
-            dataset[indx2].x[:,3][dataset[indx2].x[:,3] == 0] = 2
-            dataset[indx2].x[:,3][dataset[indx2].x[:,3] == 1] = 0
-            dataset[indx2].x[:,3][dataset[indx2].x[:,3] == 2] = 1
+            dataset[indx2].behaviour[indx_behaviour1] = torch.tensor(1, dtype=torch.long)
+            dataset[indx2].x[:,3][dataset[indx2].x[:,3] == 0] = torch.tensor(2)
+            dataset[indx2].x[:,3][dataset[indx2].x[:,3] == 1] = torch.tensor(0)
+            dataset[indx2].x[:,3][dataset[indx2].x[:,3] == 2] = torch.tensor(1)
    
     return
-   
 
+def rotate_samples(dataset, behaviour):
+    ''' 
+    Rotate the samples in the dataset when the behaviour is active.
+    '''
+    indices = []
+    for i in range(len(dataset)):
+        if dataset[i].behaviour[behaviour] == torch.tensor(1):
+            indices.append(i)
+    # Symetric wrt y axis
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,0] = torch.tensor(1) - new_sample.x[:,0]
+        dataset.append(new_sample)
+    # Symetric wrt x axis
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,1] = torch.tensor(1) - new_sample.x[:,1]
+        dataset.append(new_sample)
+    # Transpose
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,0], new_sample.x[:,1] = new_sample.x[:,1], new_sample.x[:,0]
+        dataset.append(new_sample)
+    # Rotate 180 degrees
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,0] = torch.tensor(1) - new_sample.x[:,0]
+        new_sample.x[:,1] = torch.tensor(1) - new_sample.x[:,1]
+        dataset.append(new_sample)
+    return
+
+
+    
 
     
 
