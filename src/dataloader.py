@@ -161,6 +161,8 @@ class DLCDataLoader:
             name_file = file.split('DLC')[0]
             if os.path.exists(os.path.join(self.root, name_file + '.csv')):
                 behaviour = self.load_behaviour(name_file + '.csv')
+                # Drop the first column (frame number)
+                behaviour = behaviour.drop(columns='Frames')
             else:
                 behaviour = None
                 print(f"No behaviour file for {name_file}")
@@ -183,10 +185,10 @@ class DLCDataLoader:
 
                 if self.window_size is None:
                     # Build the graph
-                    node_features, edge_index, frame_mask = self.build_graph_4(coords)
+                    node_features, edge_index, frame_mask = self.build_graph_5(coords)
                     # Build the data object
 
-                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour= torch.tensor(behaviour, dtype=torch.long))
+                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviours= torch.tensor(behaviour.values, dtype=torch.long), behaviour_names = behaviour.columns)
                     self.data_list.append(data)
                     continue
 
@@ -196,11 +198,11 @@ class DLCDataLoader:
                     behaviour_window = behaviour.iloc[j+self.window_size//2]
 
                     # Build the graph
-                    node_features, edge_index, frame_mask = self.build_graph_4(coords[j:j+self.window_size])
+                    node_features, edge_index, frame_mask = self.build_graph_5(coords[j:j+self.window_size])
                     frame_mask += j
 
                     # Build the data object
-                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window, dtype=torch.long))
+                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window.values, dtype=torch.long), behaviour_names = behaviour.columns)
                     self.data_list.append(data)
             else:
                 self.data_list.append((data_dlc.coords, behaviour))
@@ -390,6 +392,100 @@ class DLCDataLoader:
                 
 
 
+    def build_graph_5(self, coords):
+        ''' The same implementation logic as build_graph_4 but a more complete graph, edges between nose and all "border" body parts of the other individuals will be included 
+            
+            Args:
+                coords (np.ndarray): The coordinates of the individuals.
+
+            Returns:
+                node_features (torch.Tensor): The node features of the graph.
+                edge_index (LongTensor): Graph connectivity in COO format with shape [2, num_edges].
+                frame_mask (torch.Tensor): The frame mask of the graph.
+        '''
+        # Get the number of individuals
+        n_individuals = coords.shape[1]
+        # Get the number of frames
+        n_frames = coords.shape[0]
+        # Get the number of body parts
+        n_body_parts = coords.shape[2]
+        # Get the number of nodes
+        n_nodes = n_individuals * n_body_parts * n_frames
+        # node-level frame mask grey encoding
+        frame_mask = torch.zeros(n_nodes, dtype=torch.int32)
+        # Get the number of edges
+        # Edges between the nodes of the same individual in the same frame + edges between same body parts in adjecent frames + nose-tail edges between individuals
+        #n_edges = n_individuals * n_body_parts**2 * n_frames + n_individuals * n_body_parts * (n_frames - 1) + n_individuals*(n_individuals-1)*3
+        # Edge body parts
+        edge_bp = ['Nose', 'Left_ear', 'Right_ear', 'Left_fhip', 'Right_fhip', 'Left_mid', 'Right_mid', 'Left_bhip', 'Right_bhip', 'Tail_base']
+        # Index of the edge_bp
+        idx_edge_bp = [0, 1, 2, 4, 5, 9, 10, 11, 12, 16]
+
+        # Initialize the node features
+        node_features = torch.zeros(n_nodes, 4, dtype=torch.float32)
+        # Initialize the edge index
+        #edge_index = torch.zeros(2, n_edges, dtype=int)
+        edge_list = []
+
+        # Nose index, Tail index
+        idx_nose = 0
+        idx_tail = 16 # The last body part is the center of mass, the tail is the one before (if all the other body parts where dropped)
+
+        edge = 0
+        
+        # Fill the node features
+        for i in range(n_individuals):
+            for j in range(n_body_parts):
+                for k in range(n_frames):
+                    node = i * n_body_parts * n_frames + j * n_frames + k
+                    #node_features[node, :3] = torch.from_numpy(coords[k, i, j])
+                    node_features[node, :3] = torch.tensor(coords[k, i, j])
+                    #node_features[node, :3] = coords[k, i, j]
+                    node_features[node, 3] = i
+                    frame_mask[node] = k
+
+                    # Self-loops
+                    edge_list.append((node, 
+                                      node))
+                    # edge_index[0, edge] = node
+                    # edge_index[1, edge] = node
+                    edge += 1
+
+                    # Edges between the nodes of the same individual in the same frame, only the nodes already created
+                    for l in range(0, j):
+                        edge_list.append((node, 
+                                          i * n_body_parts * n_frames + l * n_frames + k))
+                        # edge_index[0, edge] = node
+                        # edge_index[1, edge] = i * n_body_parts * n_frames + l * n_frames + k
+                        edge += 1
+                    # Edges between the nodes of the same body part accross adjecent frames
+                    if k < n_frames - 1:
+
+                        edge_list.append((node,
+                                           node + 1))
+                        # edge_index[0, edge] = node
+                        # edge_index[1, edge] = node + 1
+                        
+                        edge += 1
+
+                    if j == idx_nose:
+                       for i2 in range(0, n_individuals):
+                            if i != i2:
+                                for idx_bp in idx_edge_bp:
+                                    edge_list.append((i * n_body_parts * n_frames + idx_nose * n_frames + k,
+                                                    i2 * n_body_parts * n_frames + idx_bp * n_frames + k))
+                                    edge += 1
+                    if j == idx_tail:
+                        for i2 in range(0, n_individuals):
+                            if i != i2:
+                                for idx_bp in idx_edge_bp:
+                                    edge_list.append((i * n_body_parts * n_frames + idx_tail * n_frames + k,
+                                                    i2 * n_body_parts * n_frames + idx_bp * n_frames + k))
+                                    edge += 1
+
+        edge_index = torch.tensor(edge_list, dtype=int).T
+
+        return node_features, edge_index, frame_mask
 
                     
 

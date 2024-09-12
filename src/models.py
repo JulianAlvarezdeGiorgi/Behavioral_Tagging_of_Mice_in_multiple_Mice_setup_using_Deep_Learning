@@ -16,32 +16,32 @@ class GATEncoder(nn.Module):
         
         self.gatenc1 = GATv2Conv(in_channels=self.n_in, out_channels=self.n_hidden, heads=self.attention_hidden, dropout=self.dropout, concat=True)
         self.gatenc2 = GATv2Conv(in_channels=self.n_hidden * self.attention_hidden, out_channels=self.n_hidden, heads=self.attention_hidden, dropout=self.dropout, concat=True)
-        #self.gatenc3 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
+        self.gatenc3 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=False)
         #self.gatenc4 = GATv2Conv(in_channels=self.n_hidden * attention_hidden, out_channels=self.n_hidden, heads=attention_hidden, dropout=self.dropout, concat=True)
 
-        #self.res_conn = nn.ModuleList()  # residual connections
-        #for _ in range(1):
-        #    self.res_conn.append(nn.Linear(self.n_hidden * attention_hidden, self.n_hidden * attention_hidden))
-        #    self.res_conn.append(nn.ReLU())
+        self.res_conn = nn.ModuleList()  # residual connections
+        for _ in range(1):
+            self.res_conn.append(nn.Linear(self.n_hidden * attention_hidden, self.n_hidden * attention_hidden))
+            self.res_conn.append(nn.ReLU())
 
 
 
-        #self.out = nn.Linear(self.n_hidden * attention_hidden, self.n_out)
+        self.out = nn.Linear(self.n_hidden * attention_hidden, self.n_out)
 
         
 
 
     def forward(self, x, edge_index, frame_mask):
-       
+
         # data type of the input
         x = self.gatenc1(x, edge_index)
+        x1 = self.relu(x)
+        x = self.gatenc2(x1, edge_index)
         x = self.relu(x)
-        x = self.gatenc2(x, edge_index)
+        x = self.res_conn[0](x) + x1
+        x2 = self.res_conn[1](x)
+        x = self.gatenc3(x2, edge_index)
         x = self.relu(x)
-        #x = self.res_conn[0](x) + x1
-        #x = self.res_conn[1](x)
-        #x = self.gatenc3(x, edge_index)
-        #x = self.relu(x)
         #x = self.res_conn[4](x) + x
         #x = self.res_conn[5](x)
         #x = self.gatenc4(x, edge_index)
@@ -53,6 +53,7 @@ class GATEncoder(nn.Module):
         # Aggrgate the node features for each frame, Only interested in the ENC-DEC model
         #x = global_mean_pool(x, frame_mask) 
         # Keep only where the frame mask is 1
+        #x = x[frame_mask] 
 
         #x = self.out(x)
         #x = self.relu(x)
@@ -61,11 +62,13 @@ class GATEncoder(nn.Module):
 
 
 
+
 class ClassificationHead(nn.Module):
     def __init__(self, n_latent, nhid, nout):
         super(ClassificationHead, self).__init__()
         self.hidden1 = nn.Linear(n_latent, nhid)
-        self.hidden2 = nn.Linear(nhid, nout)
+        self.hidden2 = nn.Linear(nhid, nhid)
+        self.hidden3 = nn.Linear(nhid, nout)
         self.relu = nn.ReLU()
         #self.softmax = nn.Softmax()
      
@@ -74,6 +77,8 @@ class ClassificationHead(nn.Module):
         x = self.hidden1(z)
         x = self.relu(x)
         x = self.hidden2(x)
+        x = self.relu(x)
+        x = self.hidden3(x)
         return x
     
 class GraphClassifier(nn.Module):
@@ -85,22 +90,19 @@ class GraphClassifier(nn.Module):
     def forward(self, batch):
         x, edge_index, frame_mask, graph_batch = batch.x, batch.edge_index, batch.frame_mask, batch.batch
         embbed = self.encoder(x, edge_index, frame_mask)
-        # readout the embeddings for each graph
-        embbed = global_mean_pool(embbed, graph_batch)
-        # concatenate the embeddings for each frame
-        #embbed = self.concatenate_per_graph(embbed, graph_batch[frame_mask == 2])
+        embbed = self.concatenate_per_graph(embbed, graph_batch, frame_mask)
 
+        # concatenate the embeddings for each frame
         return self.classifier(embbed)
     
     @staticmethod
-    def concatenate_per_graph(embbed, batch):
+    def concatenate_per_graph(embbed, batch, frame_mask):
         ''' Concatenate the embeddings per graph '''
         out = []
         for i in range(batch.max()+1):
-            out.append(embbed[batch==i].flatten())
-        return out
-    
-    
+            out.append(embbed[batch==i][frame_mask[batch==i] == frame_mask[batch==i].median()].flatten())
+        return torch.stack(out)
+        
     def loss(self, y, y_pred):
         return nn.CrossEntropyLoss()(y_pred, y) # Overlapping multi-class classification
     
@@ -120,15 +122,13 @@ class SimpleMLPforGraph(nn.Module):
         
     def forward(self, batch):
         x, edge_index, frame_mask, graph_batch = batch.x, batch.edge_index, batch.frame_mask, batch.batch
-        x = x[frame_mask == 2]
-        x = x.flatten()
-        x = self.hidden1(x)
+        x_per_graph = GraphClassifier.concatenate_per_graph(x, graph_batch, frame_mask)
+        x = self.hidden1(x_per_graph)
         x = self.relu(x)
         x = self.hidden2(x)
         x = self.relu(x)
         x = self.out(x)
-        return self.softmax(x)
-    
+        return x
 #
 #
 #
