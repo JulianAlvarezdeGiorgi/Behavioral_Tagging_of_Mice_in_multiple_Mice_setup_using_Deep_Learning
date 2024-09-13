@@ -175,8 +175,11 @@ class DLCDataLoader:
 
             data_dlc.drop_tail_bodyparts()
 
-            # Numpy is faster than pandas
             coords = data_dlc.coords.to_numpy()
+            # Cast the boundaries
+            
+            coords = self.cast_boundaries(coords)
+            coords = self.normalize_coords(coords)
             
             # Reshape the coordinates to have the same shape as the original data (n_frames, n_individuals, n_body_parts, 3)
             coords = coords.reshape((coords.shape[0], data_dlc.n_individuals, data_dlc.n_body_parts, 3))
@@ -786,7 +789,39 @@ class DLCDataLoader:
             frame_mask_list.append(frame_mask)
 
         return node_features_list, edge_index_list, frame_mask_list
+    
+    def cast_boundaries(self, coords):
+        ''' Cast the boundaries of the coordinates to the boundaries of the image.
+
+            Args:
+                coords (np.ndarray): The coordinates of the individuals.
+
+            Returns:
+                coords (np.ndarray): The coordinates of the individuals with the boundaries casted.'''
+        
+        x_lim = [0, 640]
+        y_lim = [0, 480]
+        # Cast the boundaries
+        coords[:, 0::3] = np.clip(coords[:, 0::3], x_lim[0], x_lim[1])
+        coords[:, 1::3] = np.clip(coords[:, 1::3], y_lim[0], y_lim[1])
+
+        return coords
             
+    def normalize_coords(self, coords):
+        ''' Normalize the coordinates of the individuals.
+
+            Args:
+                coords (np.ndarray): The coordinates of the individuals.
+
+            Returns:
+                coords (np.ndarray): The normalized coordinates of the individuals.'''
+        
+        # Normalize the coordinates
+        coords[:, 0::3] = coords[:, 0::3] / 640
+        coords[:, 1::3] = coords[:, 1::3] / 480
+
+        return coords
+        
     def load_behaviour(self, file):
         ''' Function that loads the behaviour from a csv file.
 

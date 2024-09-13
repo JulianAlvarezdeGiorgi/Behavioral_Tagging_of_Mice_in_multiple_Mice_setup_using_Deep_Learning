@@ -77,6 +77,27 @@ def rotate_samples(dataset, behaviour):
 
 
     
+def downsample_inactive(dataset, idx_behaviour):
+    ''' Shuffle before downsampling '''
+    indx_inactive = []
+    indx_active = []
+
+    for i in range(len(dataset)):
+        if dataset[i].behaviour[idx_behaviour] == 1:
+            indx_active.append(i)
+        elif dataset[i].behaviour[idx_behaviour] == 0:
+            indx_inactive.append(i)
+
+    indx_inactive = np.random.choice(indx_inactive, len(indx_active), replace=False)
+    indx = np.concatenate((indx_active,  np.random.choice(indx_inactive, len(indx_active), replace=False) ))
+    indx = np.random.permutation(indx)
+    
+    # redefine the dataset
+    dataset = [dataset[i] for i in indx]
+    return dataset
+    
+
+
 
     
 

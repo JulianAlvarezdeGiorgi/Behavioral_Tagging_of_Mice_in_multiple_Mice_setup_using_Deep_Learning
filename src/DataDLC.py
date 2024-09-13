@@ -55,7 +55,7 @@ class DataDLC:
         self.n_body_parts = len(self.body_parts) # Get the number of body parts
         self.n_frames = len(self.coords) # Get the number of frames
         
-        self.cast_boudaries() # Set the boundaries of the individuals
+        #self.cast_boudaries() # Set the boundaries of the individuals
 
         self.clean_inconsistent_nans() # Clean the inconsistent NaNs
 
@@ -78,7 +78,7 @@ class DataDLC:
             
         self.fill_nans() # Fill the NaNs with 0
 
-        self.normalize() # Normalize the coordinates
+        #self.normalize() # Normalize the coordinates
 
     def compute_center_of_mass(self):
         # Save the coordinates per individual
@@ -105,9 +105,9 @@ class DataDLC:
         # Cast the outliers to the boundaries
         for ind in self.individuals:
             for body_part in self.body_parts:
-                self.coords[ind].loc[:, (body_part, 'x')] = np.clip(self.coords[ind].loc[:, (body_part, 'x')], 0, 640)
-                self.coords[ind].loc[:, (body_part, 'y')] = np.clip(self.coords[ind].loc[:, (body_part, 'y')], 0, 480)
-
+                self.coords[ind].loc[:, (body_part, 'x')].clip(0, 640)
+                self.coords[ind].loc[:, (body_part, 'y')].clip(0, 480)
+    ## NOT WORKING
 
     def clean_inconsistent_nans(self):
         ''' If a coordinate x or y is NaN, we set to NaN the other coordinate and the likelihood. '''

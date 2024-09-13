@@ -26,7 +26,7 @@ class GATEncoder(nn.Module):
 
 
 
-        self.out = nn.Linear(self.n_hidden * attention_hidden, self.n_out)
+        #self.out = nn.Linear(self.n_hidden * attention_hidden, self.n_out)
 
         
 
