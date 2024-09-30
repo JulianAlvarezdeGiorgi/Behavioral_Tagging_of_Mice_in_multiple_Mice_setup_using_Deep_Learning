@@ -425,7 +425,7 @@ class DLCDataLoader:
         idx_edge_bp = [0, 1, 2, 4, 5, 9, 10, 11, 12, 16]
 
         # Initialize the node features
-        node_features = torch.zeros(n_nodes, 5, dtype=torch.float32)
+        node_features = torch.zeros(n_nodes, 4, dtype=torch.float32)
         # Initialize the edge index
         #edge_index = torch.zeros(2, n_edges, dtype=int)
         edge_list = []
@@ -445,7 +445,6 @@ class DLCDataLoader:
                     node_features[node, :3] = torch.tensor(coords[k, i, j])
                     #node_features[node, :3] = coords[k, i, j]
                     node_features[node, 3] = i
-                    node_features[node, 4] = k
                     frame_mask[node] = k
 
                     # Self-loops
