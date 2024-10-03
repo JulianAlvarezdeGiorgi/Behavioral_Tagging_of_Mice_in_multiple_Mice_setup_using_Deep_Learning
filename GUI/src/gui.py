@@ -1,8 +1,5 @@
 import tkinter as tk
 from tkinter import messagebox
-import sys 
-# Insert the path of modules folder  
-sys.path.insert(0, "C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\src")
 from dataloader import DLCDataLoader  # Replace 'your_module' with the actual module name
 
 class DLCDataLoaderGUI:

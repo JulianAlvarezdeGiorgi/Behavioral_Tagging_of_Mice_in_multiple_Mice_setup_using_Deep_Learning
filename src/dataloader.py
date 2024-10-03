@@ -25,25 +25,24 @@ def reload_module():
 class DLCDataLoader:
     ''' The DataLoader class for the DeepLabCut data. It loads the data from the .h5 files and preprocesses it to build the graphs. '''
     
-    def __init__(self, root, load_dataset = False, batch_size = 1, num_workers = 1, device = 'cpu', window_size=None, stride=None, build_graph=False, behaviour = None):
+    def __init__(self, root, load_dataset = False, window_size=None, stride=None, build_graph=False, behaviour = None, progress_callback = None):
         ''' Constructor of the DataLoader class. It loads the data from the .h5 files and preprocesses it to build the graphs.
 
             Args:
                 root (str): The root directory of the .h5 files.
                 load_dataset (bool): If True, the dataset is loaded from a .pkl file.
-                batch_size (int): The batch size.
-                num_workers (int): The number of workers for the DataLoader.
-                device (torch.device): The device to load the data.
                 window_size (int): The window size for the temporal graph.
                 stride (int): The stride for the temporal graph.
                 spatio_temporal_adj (MultiIndex): The spatio-temporal adjacency matrix.
                 build_graph (bool): If True, the graph is built from the coordinates of the individuals
-                behavoiur (str): The behaviour to load. '''
+                behavoiur (str): The behaviour to load. 
+                progress_callback (function): The progress callback function.'''
 
         self.root = root
-        self.batch_size = batch_size # Batch size
-        self.num_workers = num_workers # Number of workers for the DataLoader
-        self.device = device # Device to load the data
+        #self.batch_size = batch_size # Batch size
+        #self.num_workers = num_workers # Number of workers for the DataLoader
+        #self.device = device # Device to load the data
+        self.progress_callback = progress_callback # Progress callback function
 
         self.behaviour = behaviour # Behaviour to load
 
@@ -101,8 +100,6 @@ class DLCDataLoader:
         ''' Function that prints the information about the DataLoader. '''
         print(f"Number of files: {self.n_files}")
         print(f"Files are: {self.files}")
-        print(f"Batch size: {self.batch_size}")
-        print(f"Number of workers: {self.num_workers}")
         print(f"Device: {self.device}")
         print(f"Window size: {self.window_size}")
         print(f"Stride: {self.stride}")
@@ -207,12 +204,14 @@ class DLCDataLoader:
                     # Build the data object
                     data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window.values, dtype=torch.long), behaviour_names = behaviour.columns)
                     self.data_list.append(data)
+                    if self.progress_callback:
+                        self.progress_callback(j + 1, data_dlc.n_frames - self.window_size + 1)
             else:
                 self.data_list.append((data_dlc.coords, behaviour))
 
-    def get_dataloader(self):
-        ''' Function that returns the DataLoader object. '''
-        return DataLoader(self.data_list, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+    # def get_dataloader(self):
+    #     ''' Function that returns the DataLoader object. '''
+    #     return DataLoader(self.data_list, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
 
     def load_data(self):
