@@ -30,7 +30,7 @@ class GATEncoder(nn.Module):
             self.GAT_layers.append(GATv2Conv(in_channels=self.n_hidden * self.attention_heads, out_channels=self.n_hidden, heads=self.attention_heads, dropout=self.dropout, concat=True))
             #self.res_conn.append(nn.Linear(self.n_hidden * self.attention_heads, self.n_hidden * self.attention_heads))
 
-        self.GAT_layers.append(GATv2Conv(in_channels=self.n_hidden * self.attention_heads, out_channels=self.n_hidden, heads=self.attention_heads, dropout=self.dropout, concat=False))
+        self.GAT_layers.append(GATv2Conv(in_channels=self.n_hidden * self.attention_heads, out_channels=self.n_out, heads=self.attention_heads, dropout=self.dropout, concat=False))
 
         
 
@@ -454,5 +454,59 @@ class SimpleMLPforGraph(nn.Module):
 
     
 
+###### NEW MODEL #########
+
+class GATLayer(nn.Module):
+    def __init__(self, input_dim, hidden_dim, heads):
+        super(GATLayer, self).__init__()
+        self.gat1 = GATv2Conv(input_dim, hidden_dim, heads= heads)
+        self.gat2 = GATv2Conv(hidden_dim, hidden_dim, heads= heads)
+
+        
+    def forward(self, data):
+        x, edge_index = data.x, data.edge_index
+        x = torch.relu(self.gat1(x, edge_index))
+        x = torch.relu(self.gat2(x, edge_index))
+        return x
+
+
+# Custom collate function to handle sequences of Data objects
+def collate_fn(data_list):
+    # data_list is a list of lists where each sublist is a sequence of Data objects (one sequence per batch)
+    batch_seq = []
+    for seq in zip(*data_list):
+        batch_seq.append(seq)
+    return batch_seq
+
+
+
+# Now modify the forward method to handle batches of sequences
+class GCN_LSTM(nn.Module):
+    def __init__(self, input_dim, hidden_dim, lstm_hidden_dim, num_classes, num_nodes):
+        super(GCN_LSTM, self).__init__()
+        self.num_nodes = num_nodes
+        self.gcn = GATLayer(input_dim, hidden_dim)
+        self.lstm = nn.LSTM(hidden_dim * num_nodes, lstm_hidden_dim, batch_first=True)
+        self.fc = nn.Linear(lstm_hidden_dim, num_classes)
+        
+    def forward(self, batch_seq):
+        # batch_seq is a list of sequences where each sequence is a Data object containing all the graphs in a saquence (merged into a single Data object)
+        batch_size = len(batch_seq)
+
+        gnc_out = []
+        for seq in batch_seq:
+            gnc_out_seq = self.gcn(seq)
+            gnc_out.append(gnc_out_seq)
+
+        # Reshape for LSTM: Flatten nodes into a single vector
+        gcn_out = gcn_out.view(batch_size, -1, self.num_nodes * gcn_out.size(-1))  # (batch_size, seq_len, num_nodes * hidden_dim)
+        
+        # Pass through LSTM
+        lstm_out, _ = self.lstm(gcn_out)  # (batch_size, seq_len, lstm_hidden_dim)
+        
+        # Classification layer
+        out = self.fc(lstm_out[:, -1, :])  # Use the output from the last time-step for classification
+        
+        return out
 
     

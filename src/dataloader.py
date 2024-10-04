@@ -849,8 +849,20 @@ class DLCDataLoader:
 
 
 
-    
+class SequenceDataset(torch.utils.data.Dataset):
+    def __init__(self, graphs, sequence_length):
+        self.graphs = graphs  # List of all graphs (one per frame)
+        self.sequence_length = sequence_length
 
+    def __len__(self):
+        # Number of sequences you can extract from the data
+        return len(self.graphs) - self.sequence_length + 1
+
+    def __getitem__(self, idx):
+        # Return a sequence of graphs (frames)
+        return self.graphs[idx: idx + self.sequence_length]
+
+   
 
         
 
