@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+import copy
 
 def merge_symetric_behaviours(indx_behaviour1, indx_behaviour2, dataset):
 
@@ -168,3 +168,33 @@ def merge_symetric_behaviours_version2(indx_behaviour1, indx_behaviour2, dataset
 
     
 
+
+def merge_symetric_behaviours_sequences(indx_behaviour1, indx_behaviour2, data):
+
+    """
+    Merge two symetric behaviours in the sequence dataset.
+    For example, if the behaviour1 is 'Sniffing_Resident' and behaviour2 is 'Sniffing_Visitor', then the function
+    will swap identities in the dataset, and add the events of 'Sniffing_Visitor' to 'Sniffing_Resident', merging them into one behaviour.
+    """
+    # Get index of the two behaviours
+
+
+    indices_beh1 = []
+    indices_beh2 = []
+
+    for i, seq in enumerate(data):
+        if seq[1][indx_behaviour1] == 1:
+            indices_beh1.append(i)
+        if seq[1][indx_behaviour2] == 1:
+            indices_beh2.append(i)
+
+    for indx2 in indices_beh2:
+        #new_seq = list(train_data[indx2])
+        new_seq = list(copy.deepcopy(data[indx2]))
+        new_seq[1] = torch.zeros_like(new_seq[1])
+        new_seq[1][indx_behaviour1] = torch.tensor(1, dtype=torch.long)
+        for graph in new_seq[0]:
+            graph.x[:, 3][graph.x[:, 3] == 0] = torch.tensor(2) # 0 -> 2
+            graph.x[:, 3][graph.x[:, 3] == 1] = torch.tensor(0) # 1 -> 0
+            graph.x[:, 3][graph.x[:, 3] == 2] = torch.tensor(1) # 2 -> 1
+        data.append(tuple(new_seq))

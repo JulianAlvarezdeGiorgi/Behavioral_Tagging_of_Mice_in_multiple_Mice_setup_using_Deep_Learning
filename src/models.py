@@ -452,15 +452,15 @@ class SimpleMLPforGraph(nn.Module):
         return torch.stack(out)
     
 
-    
+
 
 ###### NEW MODEL #########
 
 class GATLayer(nn.Module):
-    def __init__(self, input_dim, hidden_dim, heads):
+    def __init__(self, input_dim, hidden_dim, heads, dropout):
         super(GATLayer, self).__init__()
-        self.gat1 = GATv2Conv(input_dim, hidden_dim, heads= heads)
-        self.gat2 = GATv2Conv(hidden_dim, hidden_dim, heads= heads)
+        self.gat1 = GATv2Conv(input_dim, hidden_dim, heads = heads, dropout= dropout)
+        self.gat2 = GATv2Conv(hidden_dim * heads, hidden_dim, heads = heads, concat=False, dropout= dropout)
 
         
     def forward(self, data):
@@ -470,43 +470,44 @@ class GATLayer(nn.Module):
         return x
 
 
-# Custom collate function to handle sequences of Data objects
-def collate_fn(data_list):
-    # data_list is a list of lists where each sublist is a sequence of Data objects (one sequence per batch)
-    batch_seq = []
-    for seq in zip(*data_list):
-        batch_seq.append(seq)
-    return batch_seq
-
-
 
 # Now modify the forward method to handle batches of sequences
-class GCN_LSTM(nn.Module):
-    def __init__(self, input_dim, hidden_dim, lstm_hidden_dim, num_classes, num_nodes):
-        super(GCN_LSTM, self).__init__()
+class GAT_LSTM(nn.Module):
+    def __init__(self, input_dim, hidden_dim, lstm_hidden_dim, num_classes, num_nodes, heads, dropout=0.5):
+        ''' A GAT-LSTM model for sequence classification. 
+        Parameters:
+            - input_dim: int, the number of input features
+            - hidden_dim: int, the number of hidden units in the GAT layers
+            - lstm_hidden_dim: int, the number of hidden units in the LSTM layer
+            - num_classes: int, the number of classes
+            - num_nodes: int, the number of nodes in the graph
+            - heads: int, the number of attention heads in the GAT layers
+            - dropout: float, the dropout rate 
+        '''
+        super(GAT_LSTM, self).__init__()
         self.num_nodes = num_nodes
-        self.gcn = GATLayer(input_dim, hidden_dim)
+        self.gcn = GATLayer(input_dim, hidden_dim, heads=heads, dropout=dropout)
         self.lstm = nn.LSTM(hidden_dim * num_nodes, lstm_hidden_dim, batch_first=True)
         self.fc = nn.Linear(lstm_hidden_dim, num_classes)
-        
-    def forward(self, batch_seq):
-        # batch_seq is a list of sequences where each sequence is a Data object containing all the graphs in a saquence (merged into a single Data object)
-        batch_size = len(batch_seq)
 
-        gnc_out = []
-        for seq in batch_seq:
-            gnc_out_seq = self.gcn(seq)
-            gnc_out.append(gnc_out_seq)
+    def forward(self, batch):
+        batch_size = len(batch)
+        sequence_len = len(batch[0])  # assuming all sequences are the same length
 
-        # Reshape for LSTM: Flatten nodes into a single vector
-        gcn_out = gcn_out.view(batch_size, -1, self.num_nodes * gcn_out.size(-1))  # (batch_size, seq_len, num_nodes * hidden_dim)
-        
-        # Pass through LSTM
-        lstm_out, _ = self.lstm(gcn_out)  # (batch_size, seq_len, lstm_hidden_dim)
-        
-        # Classification layer
-        out = self.fc(lstm_out[:, -1, :])  # Use the output from the last time-step for classification
-        
+        gcn_out = []
+        for seq in batch:
+            # Each element in batch is a sequence of graphs (Data objects)
+            seq_out = []
+            for graph in seq:
+                # Process each graph frame in the sequence with GCN
+                x = self.gcn(graph)
+                # Flatten the output to pass into LSTM
+                seq_out.append(x.view(-1))  # Flatten node features for LSTM
+            gcn_out.append(torch.stack(seq_out))  # Stack the sequence
+
+        gcn_out = torch.stack(gcn_out)  # Batch all sequences Shape 
+        lstm_out, (h_n, c_n) = self.lstm(gcn_out)  # Pass through LSTM
+
+        # Use the final hidden state of the LSTM to classify
+        out = self.fc(lstm_out[:, -1, :])  # Use the last LSTM output for classification
         return out
-
-    

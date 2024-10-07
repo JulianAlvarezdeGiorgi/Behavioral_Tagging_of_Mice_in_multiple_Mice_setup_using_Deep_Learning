@@ -3,6 +3,7 @@
 from torch_geometric.data import Data, DataLoader
 from torch_geometric.utils import from_scipy_sparse_matrix
 import time
+import random
 #from statsmodels.tsa.arima.model import ARIMA
 
 import h5py
@@ -851,19 +852,27 @@ class DLCDataLoader:
 
 class SequenceDataset(torch.utils.data.Dataset):
     def __init__(self, graphs, sequence_length):
-        self.graphs = graphs  # List of all graphs (one per frame)
+        self.graphs = graphs
         self.sequence_length = sequence_length
+        self.sequences = self.create_sequences()
+
+    def create_sequences(self):
+        sequences = []
+        # Create sequences of graphs while maintaining temporal coherence
+        for idx in range(len(self.graphs) - self.sequence_length + 1):
+            sequence = self.graphs[idx: idx + self.sequence_length]
+            central_idx = idx + self.sequence_length // 2
+            label = self.graphs[central_idx].behaviour
+            sequences.append((sequence, label))
+        return sequences
+
+    def shuffle(self):
+        random.shuffle(self.sequences)  # Shuffle the sequences
 
     def __len__(self):
-        # Number of sequences you can extract from the data
-        return len(self.graphs) - self.sequence_length + 1
+        return len(self.sequences)
 
     def __getitem__(self, idx):
-        # Return a sequence of graphs (frames)
-        return self.graphs[idx: idx + self.sequence_length]
-
-   
-
-        
+        return self.sequences[idx]   
 
 
