@@ -3,48 +3,8 @@ import torch.nn as nn
 from torch_geometric.nn import GATv2Conv, global_mean_pool
 
 
-class GATEncoder(nn.Module):
-    ''' The GAT encoder module. It takes in a graph batch and returns the mu and logvar vectors for each frame.
-    Parameters:
-        - nout: int, the dimension of the latent space
-        - nhid: int, the number of hidden units in the GAT layers
-        - attention_hidden: int, the number of attention heads in the GAT layers
-        - n_in: int, the number of input features
-        - n_layers: int, the number of GAT layers with residual connections
-        - dropout: float, the dropout rate
-    '''
-    def __init__(self, nout, nhid, attention_heads, n_in, n_layers, dropout):
-        super(GATEncoder, self).__init__()
-        self.dropout = dropout
-        self.n_in = n_in
-        self.attention_heads = attention_heads
-        self.n_hidden = nhid
-        self.n_out = nout
-        self.n_layers = n_layers
-        self.relu = nn.ReLU()
-        
-        self.GAT_layers = nn.ModuleList()
-        #self.res_conn = nn.ModuleList()  # residual connections
-        self.GAT_layers.append(GATv2Conv(in_channels=self.n_in, out_channels=self.n_hidden, heads=self.attention_heads, dropout=self.dropout, concat=True)) 
-        for _ in range(self.n_layers-2):
-            self.GAT_layers.append(GATv2Conv(in_channels=self.n_hidden * self.attention_heads, out_channels=self.n_hidden, heads=self.attention_heads, dropout=self.dropout, concat=True))
-            #self.res_conn.append(nn.Linear(self.n_hidden * self.attention_heads, self.n_hidden * self.attention_heads))
 
-        self.GAT_layers.append(GATv2Conv(in_channels=self.n_hidden * self.attention_heads, out_channels=self.n_out, heads=self.attention_heads, dropout=self.dropout, concat=False))
 
-        
-
-    def forward(self, x, edge_index):
-
-        x = self.GAT_layers[0](x, edge_index)
-        x = self.relu(x)
-        for i in range(1, self.n_layers-2):
-            x1 = self.GAT_layers[i](x, edge_index)
-            x1 = self.relu(x1)
-            x = x + x1
-        x = self.GAT_layers[-1](x, edge_index)
-        x = self.relu(x)
-        return x
 
 
 class GATEncoder_old(nn.Module):
@@ -260,10 +220,6 @@ class GATEncoder_v3(nn.Module):
         return x
 
 
-import torch
-import torch.nn as nn
-from torch_geometric.nn import GATv2Conv
-
 class GATDecoder(nn.Module):
     ''' The GAT decoder module. It takes in latent vectors and reconstructs the graph for each frame. '''
 
@@ -335,8 +291,54 @@ class GraphVAE(nn.Module):
         return recon_loss + kl_loss 
 
 
-######### SIMPLE LINEAR CLASSIFIER ON THE LATENT SPACE ##########
+#####################################################################################################################################################
+#####################################################################################################################################################
 
+
+class GATEncoder(nn.Module):
+    ''' The GAT encoder module. It takes in a graph batch and returns the mu and logvar vectors for each frame.
+    Parameters:
+        - nout: int, the dimension of the latent space
+        - nhid: int, the number of hidden units in the GAT layers
+        - attention_hidden: int, the number of attention heads in the GAT layers
+        - n_in: int, the number of input features
+        - n_layers: int, the number of GAT layers with residual connections
+        - dropout: float, the dropout rate
+    '''
+    def __init__(self, nout, nhid, attention_heads, n_in, n_layers, dropout):
+        super(GATEncoder, self).__init__()
+        self.dropout = dropout
+        self.n_in = n_in
+        self.attention_heads = attention_heads
+        self.n_hidden = nhid
+        self.n_out = nout
+        self.n_layers = n_layers
+        self.relu = nn.ReLU()
+        
+        self.GAT_layers = nn.ModuleList()
+        #self.res_conn = nn.ModuleList()  # residual connections
+        self.GAT_layers.append(GATv2Conv(in_channels=self.n_in, out_channels=self.n_hidden, heads=self.attention_heads, dropout=self.dropout, concat=True)) 
+        for _ in range(self.n_layers-2):
+            self.GAT_layers.append(GATv2Conv(in_channels=self.n_hidden * self.attention_heads, out_channels=self.n_hidden, heads=self.attention_heads, dropout=self.dropout, concat=True))
+            #self.res_conn.append(nn.Linear(self.n_hidden * self.attention_heads, self.n_hidden * self.attention_heads))
+
+        self.GAT_layers.append(GATv2Conv(in_channels=self.n_hidden * self.attention_heads, out_channels=self.n_out, heads=self.attention_heads, dropout=self.dropout, concat=False))
+
+        
+
+    def forward(self, x, edge_index):
+
+        x = self.GAT_layers[0](x, edge_index)
+        x = self.relu(x)
+        for i in range(1, self.n_layers-2):
+            x1 = self.GAT_layers[i](x, edge_index)
+            x1 = self.relu(x1)
+            x = x + x1
+        x = self.GAT_layers[-1](x, edge_index)
+        x = self.relu(x)
+        return x
+
+######### SIMPLE LINEAR CLASSIFIER ON THE LATENT SPACE ##########
 class ClassificationHead(nn.Module):
     def __init__(self, n_latent, nhid, nout):
         super(ClassificationHead, self).__init__()
@@ -401,28 +403,9 @@ class GraphClassifier(nn.Module):
     @staticmethod
     def attention_readout(embbed, batch, frame_mask, readout = 'mean'):
         ''' Attention readout of the embeddings per graph. Normal readouts will be applied per frame, then the attention will be applied to the frames representation to build the graph representation '''
-        out = []
-        for i in range(batch.max()+1):
-            # For each frame, apply the readout
-            frame_embbed = []
-            for j in frame_mask[batch==i].unique():
-                if readout == 'mean':
-                    frame_embbed.append(embbed[batch==i][frame_mask[batch==i] == j].mean(dim=0))
-                elif readout == 'max':
-                    frame_embbed.append(embbed[batch==i][frame_mask[batch==i] == j].max(dim=0))
-                elif readout == 'sum':
-                    frame_embbed.append(embbed[batch==i][frame_mask[batch==i] == j].sum(dim=0))
-            
-            # Apply the attention mechanism
-            frame_embbed = torch.stack(frame_embbed)
-        return
+        pass
     
-    def loss(self, y, y_pred):
-        return nn.CrossEntropyLoss()(y_pred, y) # Overlapping multi-class classification
-    
-    def accuracy(self, y, y_pred, threshold=0.5):
-        y_pred = (y_pred > threshold).float()
-        return torch.sum(y == y_pred).item() / len(y)
+
 
 class SimpleMLPforGraph(nn.Module):
     def __init__(self, n_in, n_hid, n_out):

@@ -1,12 +1,15 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from dataloader import DLCDataLoader  # Replace with your actual import
+import os
+import sys
 from tqdm import tqdm
 import threading
 import time
-import sys
-import analyze
-#from ..GUI.mice_annotation_gui import move_annotations_gui
+
+from ..src import analyze
+from ..src.dataloader import DLCDataLoader
+from GUI.mice_annotation_gui import move_annotations_gui
+
 
 class TextRedirector(object):
     """Class to redirect print statements to Tkinter Text widget."""
@@ -267,8 +270,8 @@ class InferenceFrame(tk.Frame):
     
     def launch_analysis_gui(self):
         """Launch the results analysis GUI."""
-        #move_annotations_gui.launch()  # Assuming the analysis GUI has a 'launch' function to open it
-        print("Analysis GUI launched.")
+        move_annotations_gui.launch()  # Assuming the analysis GUI has a 'launch' function to open it
+
     def run_inference_thread(self):
         """Run the inference in a separate thread to prevent freezing."""
         threading.Thread(target=self.run_inference).start()
