@@ -107,46 +107,7 @@ class DLCDataLoader:
         print(f"Build graph: {self.build_graph}")
 
     
-    def load_data_2(self):
-        '''
-        Function that loads the data from the .h5 files and preprocesses it to build the graphs.
-        It uses the DataDLC class to load the data. 
-        '''                
-        
-        for i, file in enumerate(self.files):#tqdm.tqdm(enumerate(self.files)):
-            # Load the data
-            print(f"Loading file {file}", end='\r')
-            # Name of the test
-            name_file = file.split('DLC')[0]
-            # Load the behaviour
-            # See if there's a behaviour file
-            
-            if os.path.exists(os.path.join(self.root, name_file + '.csv')):
-                behaviour = self.load_behaviour(name_file + '.csv')
-                #behaviour = torch.tensor(behaviour.values, dtype=torch.int64)
-            else:
-                behaviour = None
-                print(f"No behaviour file for {name_file}")
 
-            # Load the data
-            dlc = DataDLC.DataDLC(os.path.join(self.root, file))
-            # TO DO dlc.preprocess()
-
-            dlc.drop_tail_bodyparts()
-            
-            if self.buid_graph:
-                # Build the graph
-                t0 = time.time()
-                node_features, edge_index, frame_mask = self.build_graph_3(data_dlc=dlc, window_size= self.window_size, stride = self.stride)
-                print(f"Graph built in {time.time() - t0} s")
-                data = []
-                for i in range(len(node_features)):
-                    frames = frame_mask[i].unique().tolist()
-                    behaviour_window = behaviour.loc[frames]
-                    data.append(Data(x=node_features[i], edge_index=edge_index[i], y=behaviour_window, frame_mask=frame_mask[i], file=file))
-                self.data_list.append(data)
-            else:
-                self.data_list.append((dlc.coords, behaviour))
     def load_data_3(self):
         '''
         Function that loads the data from the .h5 files and preprocesses it to build the graphs.
@@ -196,14 +157,17 @@ class DLCDataLoader:
                 # Slide the window to build the differents graphs
                 for j in tqdm.tqdm(range(0, data_dlc.n_frames - self.window_size + 1, self.stride)):
                     # Only cae about the central frame of the window
-                    behaviour_window = behaviour.iloc[j+self.window_size//2]
-
+                    if behaviour is not None:
+                        behaviour_window = behaviour.iloc[j+self.window_size//2]
                     # Build the graph
                     node_features, edge_index, frame_mask = self.build_graph_4(coords[j:j+self.window_size])
                     frame_mask += j
 
                     # Build the data object
-                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window.values, dtype=torch.long), behaviour_names = behaviour.columns)
+                    if behaviour is not None:
+                        data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window.values, dtype=torch.long), behaviour_names = behaviour.columns)
+                    else:
+                        data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask)
                     self.data_list.append(data)
                     if self.progress_callback:
                         self.progress_callback(j + 1, data_dlc.n_frames - self.window_size + 1)
