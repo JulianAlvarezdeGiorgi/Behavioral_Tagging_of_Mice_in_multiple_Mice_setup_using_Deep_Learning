@@ -55,21 +55,21 @@ Stores key attributes such as the number of individuals, body parts, and frames.
 Processes and cleans coordinates to ensure data consistency and prepares it for downstream tasks.
 Main Methods:
 
--**`__init__(self, file: str, detect_jumps: bool = False)`**: Initializes the DataDLC class by loading data from the specified .h5 file and optionally detecting and correcting isolated jumps.
+- **`__init__(self, file: str, detect_jumps: bool = False)`**: Initializes the DataDLC class by loading data from the specified .h5 file and optionally detecting and correcting isolated jumps.
 
--**`load_data(self, detect_jumps: bool)`**: Loads data from the provided file, extracts coordinates for each individual, computes the center of mass, and handles NaN values and isolated jumps.
+- **`load_data(self, detect_jumps: bool)`**: Loads data from the provided file, extracts coordinates for each individual, computes the center of mass, and handles NaN values and isolated jumps.
 
--**`compute_center_of_mass(self)`**: Calculates the center of mass for each individual, excluding tail points to focus on core body parts.
+- **`compute_center_of_mass(self)`**: Calculates the center of mass for each individual, excluding tail points to focus on core body parts.
 
--**`clean_inconsistent_nans(self)`**: Ensures that if either the x or y coordinate of a body part is NaN, the entire coordinate set for that frame is set to NaN.
+- **`clean_inconsistent_nans(self)`**: Ensures that if either the x or y coordinate of a body part is NaN, the entire coordinate set for that frame is set to NaN.
 
--**`fill_nans(self)`**: Fills NaN values with zeros for consistency in further analysis.
+- **`fill_nans(self)`**: Fills NaN values with zeros for consistency in further analysis.
 
--**`detect_isolated_jumps(self, threshold_soft_min: int, threshold_soft_max: int, imputation: bool)`**: Detects isolated jumps in time-series data using thresholds for minimal and maximal jumps, and optionally imputes these jumps using linear interpolation.
+- **`detect_isolated_jumps(self, threshold_soft_min: int, threshold_soft_max: int, imputation: bool)`**: Detects isolated jumps in time-series data using thresholds for minimal and maximal jumps, and optionally imputes these jumps using linear interpolation.
 
--**`remove_outlier_bouts(self, threshold_split_tracklets: int, threshold_jump: int, percentage_gap_neigh: float, verbose: bool)`**: Identifies and removes outlier tracklets that deviate significantly from neighboring tracklets.
+- **`remove_outlier_bouts(self, threshold_split_tracklets: int, threshold_jump: int, percentage_gap_neigh: float, verbose: bool)`**: Identifies and removes outlier tracklets that deviate significantly from neighboring tracklets.
 
--**`detect_tracklets(self, x, y, threshold: int)`**: Detects tracklets (continuous segments of valid data points) in the time-series data based on specified thresholds.
+- **`detect_tracklets(self, x, y, threshold: int)`**: Detects tracklets (continuous segments of valid data points) in the time-series data based on specified thresholds.
 
 This class provides a robust way to prepare time-series pose estimation data for further analysis, addressing common issues such as jumps, outliers, and inconsistent coordinates.
 
