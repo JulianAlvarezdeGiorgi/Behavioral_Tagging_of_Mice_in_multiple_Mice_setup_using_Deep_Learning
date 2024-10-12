@@ -6,6 +6,7 @@ The study of social behavior in mice is a crucial aspect of neuroscience researc
 This repository addresses these challenges by providing an automated solution for analyzing open-field test videos. Using a top-view configuration, the system leverages DeepLabCut to perform pose estimation, accurately tracking various body parts of the mice. The extracted data is then processed with machine learning tools to identify and quantify specific behaviors. This approach not only streamlines the analysis, reducing the time and effort required, but also improves accuracy and consistency, minimizing human bias in behavior interpretation.
 
 Content:
+```
 src
 ├── .ipynb_checkpoints/
 ├── Analyse_one_video.ipynb
@@ -38,7 +39,7 @@ src
 ├── utils_deepof.py
 ├── Visualization.ipynb
 ├── __pycache__/
-
+```
 
 
 - src/dataloader.py: Contains the class Data_DLC, which loads the output file '.h5' of DeepLabCut into a pandas MultiIndex data frame and allows manipulation and pre-processing ot the time-series. Documentation on the specifically functionalities can be found in ...
