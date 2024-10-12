@@ -53,6 +53,7 @@ Class: DataDLC
 Handles loading and preprocessing data from .h5 files generated from pose estimation models like DeepLabCut.
 Stores key attributes such as the number of individuals, body parts, and frames.
 Processes and cleans coordinates to ensure data consistency and prepares it for downstream tasks.
+The DataDLC class also includes various methods for data imputation, statistical analysis, and visualization. These functionalities enable handling missing data, creating videos for better visualization of the tracked points, and saving the processed data.
 Main Methods:
 
 - **`__init__(self, file: str, detect_jumps: bool = False)`**: Initializes the DataDLC class by loading data from the specified .h5 file and optionally detecting and correcting isolated jumps.
@@ -88,6 +89,24 @@ This script contains functions for augmenting and balancing datasets of mouse be
 - **`merge_symetric_behaviours_version2()`**: Similar to `merge_symetric_behaviours()`, but it creates new samples for all instances of a behavior in the secondary individual, preserving additional context. This function is designed to help the model differentiate between individuals while keeping both behaviors represented.
 
 - **`merge_symetric_behaviours_sequences()`**: Applies the merging of symmetrical behaviors on sequences of data, adjusting the identity labels across multiple frames. This is useful for scenarios where the dataset contains time-series data, allowing consistent merging of behaviors across frames while maintaining individual identities.
+
+- **`entropy_of_masks(self, mask1, mask2)`**:Calculates the entropy between two masks, which can be used to compare differences between two datasets.
+
+- **`drop_tail_bodyparts(self)`**:Removes body parts corresponding to the tail from the dataset before building the graph, reducing the data dimensions for specific analyses.
+
+- **`create_video(self, video_path, output_path, plot_prev_coords=False, frames=None)`**:Creates a video showing the tracked body parts of each individual over time.
+Includes options to plot previous coordinates and specify a range of frames to process.
+
+- **`get_statistics_on_jumps(self, plot=False)`**:Computes the mean and standard deviation of jumps between consecutive points, assuming a Gaussian distribution for jumps.
+If `plot=True`, displays a histogram of the jumps for better visualization.
+
+- **`create_video_per_event(self, video_path, output_path, events, split_behaviour=False)`**:Generates videos highlighting specific events on each frame.
+If split_behaviour=True, creates separate videos for each event; otherwise, it overlays all events on a single video.
+Useful for visualizing behavior annotations alongside the tracked points.
+
+- **`save(self, path)`**:Saves the processed data back into an `.h5` file, preserving the changes made during analysis.
+Ensures compatibility with other tools by storing the data in a structured format.
+
 
 These functions support data augmentation, balancing, and preparation for training machine learning models on behavior recognition tasks in mice.
 
