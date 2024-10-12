@@ -72,24 +72,6 @@ Main Methods:
 
 - **`detect_tracklets(self, x, y, threshold: int)`**: Detects tracklets (continuous segments of valid data points) in the time-series data based on specified thresholds.
 
-This class provides a robust way to prepare time-series pose estimation data for further analysis, addressing common issues such as jumps, outliers, and inconsistent coordinates.
-
-### `augmentation.py`
-
-This script contains functions for augmenting and balancing datasets of mouse behavior data, specifically targeting symmetrical behaviors and class imbalances. The functions included are:
-
-- **`merge_symetric_behaviours()`**: Merges two symmetrical behaviors by swapping the identities of the subjects and combining occurrences of the two behaviors into one. This is useful for combining behaviors like 'Sniffing_Resident' and 'Sniffing_Visitor' into a single category while maintaining identity distinctions in the dataset.
-
-- **`rotate_samples()`**: Rotates samples in the dataset based on active behaviors. The function creates symmetry by flipping the pose data along the x or y axis, transposing the coordinates, or rotating them by 180 degrees. This augmentation helps the model generalize better by providing additional variations of the behaviors.
-
-- **`downsample_inactive()`**: Balances the dataset by randomly selecting a subset of inactive samples to match the number of active samples for a specific behavior. This helps in reducing class imbalance, especially when the inactive instances are significantly higher in number.
-
-- **`downsample_majority_class()`**: Downsamples the majority class (either active or inactive samples) to match the count of the minority class for a specified behavior. It aims to maintain class balance, reducing the risk of the model being biased towards the more frequent class.
-
-- **`merge_symetric_behaviours_version2()`**: Similar to `merge_symetric_behaviours()`, but it creates new samples for all instances of a behavior in the secondary individual, preserving additional context. This function is designed to help the model differentiate between individuals while keeping both behaviors represented.
-
-- **`merge_symetric_behaviours_sequences()`**: Applies the merging of symmetrical behaviors on sequences of data, adjusting the identity labels across multiple frames. This is useful for scenarios where the dataset contains time-series data, allowing consistent merging of behaviors across frames while maintaining individual identities.
-
 - **`entropy_of_masks(self, mask1, mask2)`**:Calculates the entropy between two masks, which can be used to compare differences between two datasets.
 
 - **`drop_tail_bodyparts(self)`**:Removes body parts corresponding to the tail from the dataset before building the graph, reducing the data dimensions for specific analyses.
@@ -107,6 +89,24 @@ Useful for visualizing behavior annotations alongside the tracked points.
 - **`save(self, path)`**:Saves the processed data back into an `.h5` file, preserving the changes made during analysis.
 Ensures compatibility with other tools by storing the data in a structured format.
 
+
+This class provides a robust way to prepare time-series pose estimation data for further analysis, addressing common issues such as jumps, outliers, and inconsistent coordinates.
+
+### `augmentation.py`
+
+This script contains functions for augmenting and balancing datasets of mouse behavior data, specifically targeting symmetrical behaviors and class imbalances. The functions included are:
+
+- **`merge_symetric_behaviours()`**: Merges two symmetrical behaviors by swapping the identities of the subjects and combining occurrences of the two behaviors into one. This is useful for combining behaviors like 'Sniffing_Resident' and 'Sniffing_Visitor' into a single category while maintaining identity distinctions in the dataset.
+
+- **`rotate_samples()`**: Rotates samples in the dataset based on active behaviors. The function creates symmetry by flipping the pose data along the x or y axis, transposing the coordinates, or rotating them by 180 degrees. This augmentation helps the model generalize better by providing additional variations of the behaviors.
+
+- **`downsample_inactive()`**: Balances the dataset by randomly selecting a subset of inactive samples to match the number of active samples for a specific behavior. This helps in reducing class imbalance, especially when the inactive instances are significantly higher in number.
+
+- **`downsample_majority_class()`**: Downsamples the majority class (either active or inactive samples) to match the count of the minority class for a specified behavior. It aims to maintain class balance, reducing the risk of the model being biased towards the more frequent class.
+
+- **`merge_symetric_behaviours_version2()`**: Similar to `merge_symetric_behaviours()`, but it creates new samples for all instances of a behavior in the secondary individual, preserving additional context. This function is designed to help the model differentiate between individuals while keeping both behaviors represented.
+
+- **`merge_symetric_behaviours_sequences()`**: Applies the merging of symmetrical behaviors on sequences of data, adjusting the identity labels across multiple frames. This is useful for scenarios where the dataset contains time-series data, allowing consistent merging of behaviors across frames while maintaining individual identities.
 
 These functions support data augmentation, balancing, and preparation for training machine learning models on behavior recognition tasks in mice.
 
