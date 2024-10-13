@@ -398,37 +398,42 @@ class DataDLC:
         out.release()
         cv2.destroyAllWindows()
 
-    def get_statistics_on_jumps(self, plot = False) -> np.ndarray:
+    def get_statistics_on_jumps(self, plot = False, individual = None, body_part = None):
         ''' This function will give the mean and standard deviation of the jumps between points for adjency frames. This assumes Gaussian distribution jumps.
 
             Args:
                 plot (bool): If True, the histogram of the jumps will be plotted.
+                individual (str): The individual to get the statistics. If None, the statistics for all the individuals will be computed.
+                body_part (str): The body part to get the statistics. If None, the statistics for all the body parts will be computed.
             
             Returns:
                 diff (np.ndarray): The jumps between points for adjency frames. '''
         
+        if individual is None:
+            individual = self.individuals[0]
+        if body_part is None:
+            body_part = self.body_parts[0]
+        
         self.statistics = {}
         
-        for ind in self.individuals:
-            for body_part in self.body_parts:
-                x = self.coords[ind].loc[:, (body_part, 'x')]
-                y = self.coords[ind].loc[:, (body_part, 'y')]
-                # Compute the euclidiean difference between two consecutive points and two points separated by two frames
-                diff = np.sqrt(np.abs(x.diff())**2 + np.abs(y.diff()**2)) #np.stack ([np.sqrt(np.abs(x.diff())**2 + np.abs(y.diff()**2)), np.sqrt(np.abs(x.diff(-1))**2 + np.abs(y.diff(-1))**2)], axis=1)
-                # Get the mean and standard deviation
-                mean = diff.mean()
-                std = diff.std()
-                if plot:
-                    plt.hist(diff, bins=100)
-                    plt.xlabel('Jump')
-                    plt.ylabel('Frequency')
-                    plt.title(f'Jump distribution for {ind} and {body_part}')
-                    plt.show()
-                print(f'Mean of the jumps for {ind} and {body_part}: {mean}')
-                print(f'Standard deviation of the jumps for {ind} and {body_part}: {std}')
-                self.statistics[(ind, body_part)] = (mean, std)
-                break
-            break
+
+        x = self.coords[individual].loc[:, (body_part, 'x')]
+        y = self.coords[individual].loc[:, (body_part, 'y')]
+        # Compute the euclidiean difference between two consecutive points and two points separated by two frames
+        diff = np.sqrt(np.abs(x.diff())**2 + np.abs(y.diff()**2)) #np.stack ([np.sqrt(np.abs(x.diff())**2 + np.abs(y.diff()**2)), np.sqrt(np.abs(x.diff(-1))**2 + np.abs(y.diff(-1))**2)], axis=1)
+        # Get the mean and standard deviation
+        mean = diff.mean()
+        std = diff.std()
+        if plot:
+            plt.hist(diff, bins=100)
+            plt.xlabel('Jump')
+            plt.ylabel('Frequency')
+            plt.title(f'Jump distribution for {individual} and {body_part}')
+            plt.show()
+        print(f'Mean of the jumps for {individual} and {body_part}: {mean}')
+        print(f'Standard deviation of the jumps for {individual} and {body_part}: {std}')
+        self.statistics[(individual, body_part)] = (mean, std)
+        
             
         return diff
 

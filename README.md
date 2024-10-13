@@ -1,46 +1,88 @@
 # Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning
 *Identification and temporal classification of social behavior of different mice with different pathologies in order to study them.*
 
+## Overview
 The study of social behavior in mice is a crucial aspect of neuroscience research, particularly in understanding the effects of various pathologies or treatments. One of the key methods used in this research is the open-field test, where the behavior and social interactions of mice are observed in an open, stimulus-free environment. Traditionally, analyzing these tests is a manual, time-consuming process, with increasing complexity as the number of mice and interactions grows. Additionally, subjective interpretations can introduce bias, leading to inconsistencies in the results.
 
-This repository addresses these challenges by providing an automated solution for analyzing open-field test videos. Using a top-view configuration, the system leverages DeepLabCut to perform pose estimation, accurately tracking various body parts of the mice. The extracted data is then processed with machine learning tools to identify and quantify specific behaviors. This approach not only streamlines the analysis, reducing the time and effort required, but also improves accuracy and consistency, minimizing human bias in behavior interpretation.
+This repository addresses these challenges by providing an automated solution for analyzing open-field test videos. Using a top-view configuration, the system leverages **DeepLabCut (DLC)** for pose estimation to track key body parts of multiple animals over time and leverages **Graph Attention Networks (GATs)** for behavior recognition. The end-to-end pipeline is designed to extract poses from videos, construct spatio-temporal graphs, and classify various social behaviors between mice.
 
-Content:
+## Project Structure:
 ```
 src
-├── .ipynb_checkpoints/
-├── Analyse_one_video.ipynb
-├── analyze.ipynb
 ├── augmentation.py
 ├── baseline_models/
 ├── baseline_models.ipynb
-├── Check_graph.ipynb
-├── CompressCSV.ipynb
 ├── DataDLC.py
 ├── dataloader.py
-├── deletefolder/
 ├── gui.py
-├── model.pkl
 ├── models.py
-├── model_sniff_R.pkl
 ├── preprocessing.py
-├── preprocessingTimeSeries.ipynb
-├── preprocessingTimeSeries_Oficina.ipynb
 ├── results_baseline_models.ipynb
-├── runs/
-├── test.ipynb
-├── test_oficina.ipynb
-├── train.ipynb
 ├── train.py
-├── train_oficina.ipynb
-├── train_oficina_2.ipynb
 ├── train_poursuit.py
 ├── utils.py
 ├── utils_deepof.py
 ├── Visualization.ipynb
-├── __pycache__/
 ```
 
+## Methodology
+
+### 1. Pose Estimation
+
+The first part of the pipeline involves using **DeepLabCut (DLC)** for extracting poses of multiple animals from videos. Each video is processed to obtain coordinates of key body parts (e.g., nose, ears, tail) for every frame, generating a time-series of pose data.
+
+**Methods:**
+- **DeepLabCut Model Fine-Tuning:** A fine-tuned ResNet model is used for pose estimation in the specific multi-animal setup.
+- **Pose Data Preprocessing:** Raw pose data is cleaned and normalized to remove noise and standardize keypoint positions across frames.
+
+### 2. Spatio-Temporal Graph Construction 
+
+Pose data is transformed into a **spatio-temporal graph representation**, where nodes represent body parts, and edges represent both spatial relationships (connections between body parts) and temporal relationships (connections between the same body part across frames).
+
+**Methods:**
+- **Graph Construction:** Each frame is represented as a graph, with nodes for each body part and edges capturing spatial proximity. Temporal edges link the same nodes across sequential frames, forming a **graph sequence**.
+- **Graph Data Preparation:** Graphs are packaged as `torch_geometric` `Data` objects, including node features (e.g., keypoint coordinates, individual identity) and labels for the behaviors present in each frame sequence.
+
+### 3. Behavior Recognition using Graph Attention Networks (GATs)
+
+The core of behavior recognition is a Graph Attention Network (GAT) encoder followed by a Classification Head based on fully connected layers. A separate GAT-based model is trained for each behavior to focus on behavior-specific features.
+
+**Methods:**
+ - **Graph Attention Network (GAT):** Extracts a spatio temporal features from the spatio-temporal graph.
+- **Multi-Class Classification:** Each model is trained to recognize the presence or absence of a specific behavior (e.g., Sniffing, Dominance).
+
+## Getting Started
+### Prerequisites
+- Python >=3.8
+- Instal dependencies using:
+```
+pip install -r requirements.txt
+```
+- **DeepLabCut** for pose estimation.
+- **PyTorch Geometric** for the spatio-temporal graph.
+
+#### Setup
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/multi-animal-behavior-recognition.git
+   cd multi-animal-behavior-recognition
+   ```
+2. Download pre-trained models and place them in the `models/` directory.
+3. Prepare pose estimation data and place it in the `data/` directory.
+
+#### Running the GUI
+Launch the GUI for data loading and result analysis:
+```
+python gui/main_gui.py
+```
+
+
+
+
+
+
+  ---
+  
 - src/dataloader.py: Contains the class Data_DLC, which loads the output file '.h5' of DeepLabCut into a pandas MultiIndex data frame and allows manipulation and pre-processing ot the time-series. Documentation on the specifically functionalities can be found in ...
 - src/Models.py: Contains the class that defines the models to be used.
 - 
@@ -68,7 +110,7 @@ Main Methods:
 
 - **`detect_isolated_jumps(self, threshold_soft_min: int, threshold_soft_max: int, imputation: bool)`**: Detects isolated jumps in time-series data using thresholds for minimal and maximal jumps, and optionally imputes these jumps using linear interpolation.
 
-- **`remove_outlier_bouts(self, threshold_split_tracklets: int, threshold_jump: int, percentage_gap_neigh: float, verbose: bool)`**: Identifies and removes outlier tracklets that deviate significantly from neighboring tracklets.
+- **`remove_outlier_tracklets(self, threshold_split_tracklets: int, threshold_jump: int, percentage_gap_neigh: float, verbose: bool)`**: Identifies and removes outlier tracklets that deviate significantly from neighboring tracklets.
 
 - **`detect_tracklets(self, x, y, threshold: int)`**: Detects tracklets (continuous segments of valid data points) in the time-series data based on specified thresholds.
 
