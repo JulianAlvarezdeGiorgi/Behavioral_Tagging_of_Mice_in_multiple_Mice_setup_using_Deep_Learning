@@ -1,8 +1,7 @@
 import numpy as np
 import torch
-import copy
 
-def merge_symetric_behaviours(indx_behaviour1, indx_behaviour2, dataset):
+def merge_symetric_behaviours(indx_behaviour1, indx_behaviour2, dataset, device= 'cpu'):
 
     """
     Merge two symetric behaviours in the dataset.
@@ -44,84 +43,7 @@ def merge_symetric_behaviours(indx_behaviour1, indx_behaviour2, dataset):
    
     return
 
-def rotate_samples(dataset, behaviour):
-    ''' 
-    Rotate the samples in the dataset when the behaviour is active.
-    '''
-    indices = []
-    for i in range(len(dataset)):
-        if dataset[i].behaviour[behaviour] == torch.tensor(1):
-            indices.append(i)
-    # Symetric wrt y axis
-    for indx in indices:
-        new_sample = dataset[indx].clone()
-        new_sample.x[:,0] = torch.tensor(1) - new_sample.x[:,0]
-        dataset.append(new_sample)
-    # Symetric wrt x axis
-    for indx in indices:
-        new_sample = dataset[indx].clone()
-        new_sample.x[:,1] = torch.tensor(1) - new_sample.x[:,1]
-        dataset.append(new_sample)
-    # Transpose
-    for indx in indices:
-        new_sample = dataset[indx].clone()
-        new_sample.x[:,0], new_sample.x[:,1] = new_sample.x[:,1], new_sample.x[:,0]
-        dataset.append(new_sample)
-    # Rotate 180 degrees
-    for indx in indices:
-        new_sample = dataset[indx].clone()
-        new_sample.x[:,0] = torch.tensor(1) - new_sample.x[:,0]
-        new_sample.x[:,1] = torch.tensor(1) - new_sample.x[:,1]
-        dataset.append(new_sample)
-    return
-
-
-    
-def downsample_inactive(dataset, idx_behaviour):
-    ''' Shuffle before downsampling '''
-    indx_inactive = []
-    indx_active = []
-
-    for i in range(len(dataset)):
-        if dataset[i].behaviour[idx_behaviour] == 1:
-            indx_active.append(i)
-        elif dataset[i].behaviour[idx_behaviour] == 0:
-            indx_inactive.append(i)
-
-    indx_inactive = np.random.choice(indx_inactive, len(indx_active), replace=False)
-    indx = np.concatenate((indx_active,  indx_inactive))
-    indx = np.random.permutation(indx)
-    
-    # redefine the dataset
-    dataset = [dataset[i] for i in indx]
-    return dataset
-
-def downsample_majority_class(dataset, idx_behaviour):
-    ''' Downsample the majority class '''
-    indx_inactive = []
-    indx_active = []
-
-    for i in range(len(dataset)):
-        if dataset[i].behaviour[idx_behaviour] == 1:
-            indx_active.append(i)
-        elif dataset[i].behaviour[idx_behaviour] == 0:
-            indx_inactive.append(i)
-
-    if len(indx_active) > len(indx_inactive):
-        indx_active = np.random.choice(indx_active, len(indx_inactive), replace=False)
-    else:
-        indx_inactive = np.random.choice(indx_inactive, len(indx_active), replace=False)
-
-    indx = np.concatenate((indx_active, indx_inactive))
-    indx = np.random.permutation(indx)
-
-    # redefine the dataset
-    dataset = [dataset[i] for i in indx]
-    return dataset
-
-    
-
-def merge_symetric_behaviours_version2(indx_behaviour1, indx_behaviour2, dataset):
+def merge_symetric_behaviours_version2(indx_behaviour1, indx_behaviour2, dataset, device= 'cpu'):
 
     """
     Merge two symetric behaviours in the dataset.
@@ -166,35 +88,80 @@ def merge_symetric_behaviours_version2(indx_behaviour1, indx_behaviour2, dataset
    
     return
 
+def rotate_samples(dataset, behaviour, device='cpu'):
+    ''' 
+    Rotate the samples in the dataset when the behaviour is active.
+    '''
+    indices = []
+    for i in range(len(dataset)):
+        if dataset[i].behaviour[behaviour] == torch.tensor(1):
+            indices.append(i)
+    # Symetric wrt y axis
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,0] = torch.tensor(1) - new_sample.x[:,0]
+        dataset.append(new_sample)
+    # Symetric wrt x axis
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,1] = torch.tensor(1) - new_sample.x[:,1]
+        dataset.append(new_sample)
+    # Transpose
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,0], new_sample.x[:,1] = new_sample.x[:,1], new_sample.x[:,0]
+        dataset.append(new_sample)
+    # Rotate 180 degrees
+    for indx in indices:
+        new_sample = dataset[indx].clone()
+        new_sample.x[:,0] = torch.tensor(1) - new_sample.x[:,0]
+        new_sample.x[:,1] = torch.tensor(1) - new_sample.x[:,1]
+        dataset.append(new_sample)
+    return
+
+
+    
+def downsample_inactive(dataset, idx_behaviour):
+    ''' Shuffle before downsampling '''
+    indx_inactive = []
+    indx_active = []
+
+    for i in range(len(dataset)):
+        if dataset[i].behaviour[idx_behaviour] == 1:
+            indx_active.append(i)
+        elif dataset[i].behaviour[idx_behaviour] == 0:
+            indx_inactive.append(i)
+
+    indx_inactive = np.random.choice(indx_inactive, len(indx_active), replace=False)
+    indx = np.concatenate((indx_active,  np.random.choice(indx_inactive, len(indx_active), replace=False) ))
+    indx = np.random.permutation(indx)
+    
+    # redefine the dataset
+    dataset = [dataset[i] for i in indx]
+    return dataset
+
+
+def downsample_majority_class(dataset, idx_behaviour):
+    ''' Downsample the majority class '''
+    indx_inactive = []
+    indx_active = []
+
+    for i in range(len(dataset)):
+        if dataset[i].behaviour[idx_behaviour] == 1:
+            indx_active.append(i)
+        elif dataset[i].behaviour[idx_behaviour] == 0:
+            indx_inactive.append(i)
+
+    if len(indx_active) > len(indx_inactive):
+        indx_active = np.random.choice(indx_active, len(indx_inactive), replace=False)
+    else:
+        indx_inactive = np.random.choice(indx_inactive, len(indx_active), replace=False)
+
+    indx = np.concatenate((indx_active, indx_inactive))
+    indx = np.random.permutation(indx)
+
+    # redefine the dataset
+    dataset = [dataset[i] for i in indx]
+    return dataset
     
 
-
-def merge_symetric_behaviours_sequences(indx_behaviour1, indx_behaviour2, data):
-
-    """
-    Merge two symetric behaviours in the sequence dataset.
-    For example, if the behaviour1 is 'Sniffing_Resident' and behaviour2 is 'Sniffing_Visitor', then the function
-    will swap identities in the dataset, and add the events of 'Sniffing_Visitor' to 'Sniffing_Resident', merging them into one behaviour.
-    """
-    # Get index of the two behaviours
-
-
-    indices_beh1 = []
-    indices_beh2 = []
-
-    for i, seq in enumerate(data):
-        if seq[1][indx_behaviour1] == 1:
-            indices_beh1.append(i)
-        if seq[1][indx_behaviour2] == 1:
-            indices_beh2.append(i)
-
-    for indx2 in indices_beh2:
-        #new_seq = list(train_data[indx2])
-        new_seq = list(copy.deepcopy(data[indx2]))
-        new_seq[1] = torch.zeros_like(new_seq[1])
-        new_seq[1][indx_behaviour1] = torch.tensor(1, dtype=torch.long)
-        for graph in new_seq[0]:
-            graph.x[:, 3][graph.x[:, 3] == 0] = torch.tensor(2) # 0 -> 2
-            graph.x[:, 3][graph.x[:, 3] == 1] = torch.tensor(0) # 1 -> 0
-            graph.x[:, 3][graph.x[:, 3] == 2] = torch.tensor(1) # 2 -> 1
-        data.append(tuple(new_seq))
