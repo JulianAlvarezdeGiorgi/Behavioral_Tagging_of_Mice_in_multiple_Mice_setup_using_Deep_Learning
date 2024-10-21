@@ -6,7 +6,10 @@ import threading
 import time
 import sys
 import analyze
-#from ..GUI.mice_annotation_gui import move_annotations_gui
+from mice_annotation_gui.move_annotations_gui import MovieViewer
+import pandas as pd
+
+
 
 class TextRedirector(object):
     """Class to redirect print statements to Tkinter Text widget."""
@@ -190,7 +193,7 @@ class InferenceFrame(tk.Frame):
         self.behaviour_label.pack()
         self.behaviour_var = tk.StringVar()
         self.behaviour_dropdown = ttk.Combobox(self, textvariable=self.behaviour_var)
-        self.behaviour_dropdown['values'] = list(analyze.MODELS.keys())
+        self.behaviour_dropdown['values'] = list(analyze.MODELS.keys()) + ['All']
         self.behaviour_dropdown.pack()
 
         # Dataset path input
@@ -217,7 +220,10 @@ class InferenceFrame(tk.Frame):
         self.train_button.pack(pady=10)
 
         # Button to launch analysis (disabled initially)
-        self.analysis_button = tk.Button(self, text="Analyze Results", state=tk.DISABLED, command=self.launch_analysis_gui)
+        self.analysis_button = tk.Button(self, text="Analyze Results", command=self.launch_analysis_gui)
+        self.analysis_button.pack(pady=10)
+
+        self.analysis_button = tk.Button(self, text="Get Statistics", command=self.get_statistics)
         self.analysis_button.pack(pady=10)
 
         self.back_button = tk.Button(self, text="Back to DataLoader", command=lambda: controller.show_frame(DataLoaderFrame))
@@ -239,7 +245,8 @@ class InferenceFrame(tk.Frame):
 
     def browse_save_as(self):
         """Open a file dialog to select where to save the output."""
-        save_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        # Must be a directory, of where to save the files
+        save_path = filedialog.askdirectory()
         if save_path:
             self.save_entry.delete(0, tk.END)
             self.save_entry.insert(0, save_path)
@@ -258,17 +265,68 @@ class InferenceFrame(tk.Frame):
             print(f"Running inference for {behaviour}...")
 
             # Run the inference
-            analyze.inference(behaviour, path_to_data, path_to_save)
+            if behaviour == 'All':
+                analyze.inference_all_behaviors(path_to_data, path_to_save)
+            else:
+                analyze.inference(behaviour, path_to_data, save=True, path_to_save=path_to_save)
 
             print(f"Inference completed. Results saved at {path_to_save}.")
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+
+    def display_statistics_treeview(self, statistics_df):
+        """Display statistics in a table format using Treeview."""
+        # Create a new window to display the statistics
+        stats_window = tk.Toplevel(self.master)
+        stats_window.title("Inference Statistics")
+
+        # Create a Treeview widget
+        tree = ttk.Treeview(stats_window)
+        tree.pack(expand=True, fill="both")
+
+        # Add columns to the Treeview based on DataFrame columns
+        tree["columns"] = list(statistics_df.columns)
+        tree["show"] = "headings"  # Hide the first empty column
+
+        # Add headings for each column
+        for col in statistics_df.columns:
+            tree.heading(col, text=col)
+
+        # Insert data rows into the Treeview
+        for index, row in statistics_df.iterrows():
+            tree.insert("", "end", values=list(row))
+
+    def get_statistics(self):
+        """Get statistics for the inference results."""
+        try:
+            path_to_files = self.save_entry.get()
+
+            if not path_to_files:
+                messagebox.showerror("Error", "Please select the path to the inference results.")
+                return
+
+            print("Getting statistics for inference results...")
+
+            # Get the statistics from analyze module (returns a DataFrame)
+            statistics_df = analyze.get_statistics(path_to_files)
+
+            # Call the display function to show statistics in Treeview
+            self.display_statistics_treeview(statistics_df)
+
+            print(f"Statistics displayed for inference results from {path_to_files}.")
+
+        except Exception as e:
+             messagebox.showerror("Error", str(e))
+    
     
     def launch_analysis_gui(self):
         """Launch the results analysis GUI."""
-        #move_annotations_gui.launch()  # Assuming the analysis GUI has a 'launch' function to open it
-        print("Analysis GUI launched.")
+        # Create a new window for analysis
+        viewer = MovieViewer()
+        viewer.show()
+    
     def run_inference_thread(self):
         """Run the inference in a separate thread to prevent freezing."""
         threading.Thread(target=self.run_inference).start()

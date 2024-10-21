@@ -2,6 +2,10 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
+import models
+import torch
+import dataloader
+import matplotlib.pyplot as plt
 
 def from_time_to_frame(time, fps):
     time = time.split(':')
@@ -197,3 +201,13 @@ def periodogram(signal, method='standard',display = False, window_size=None, ove
 
     return periodogram
 
+def swap_identities(dataset):
+    """
+    Swap the identities of the resident in the dataset. This is used to analyze the behaviour of the visitor when doing inference.
+
+    Parameters:
+        dataset list of torch.geometric.data.Data: The dataset to swap the identities of the resident.
+    """
+
+    for data in dataset:
+        data.x[:, 3] = 1 - data.x[:, 3]
