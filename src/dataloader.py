@@ -65,8 +65,8 @@ class DLCDataLoader:
             self.files = [f for f in os.listdir(root) if f.endswith('filtered.h5')]
             print(self.files)
             # Order by number of the test
-            self.files.sort(key=lambda x: int(x.split('DLC')[0].split('_')[3]))
-            self.n_files = len(self.files) # Number of files, i.e. number of spatio-temporal graphs
+            #self.files.sort(key=lambda x: int(x.split('DLC')[0].split('_')[3]))
+            self.n_files = len(self.files) # Number of files
             self.data_list = []
         
             print(f"Loading data from {root}, where we have {self.n_files} files")
@@ -111,7 +111,12 @@ class DLCDataLoader:
             if os.path.exists(os.path.join(self.root, name_file + '.csv')):
                 behaviour = self.load_behaviour(name_file + '.csv')
                 # Drop the first column (frame number)
-                behaviour = behaviour.drop(columns='Frames')
+                # Chec if the column Frames or Frame is present
+                if 'Frames' in behaviour.columns:
+                    behaviour = behaviour.drop(columns='Frames')
+
+                elif 'frame' in behaviour.columns:
+                    behaviour = behaviour.drop(columns='frame')
             else:
                 behaviour = None
                 print(f"No behaviour file for {name_file}")

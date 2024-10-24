@@ -9,17 +9,20 @@ import torch.nn as nn
 import utils
 import os
 import matplotlib.pyplot as plt
+import joblib
 
 # Define a Dictionary that contains the models for each behavior
-MODELS = {'General_Contacts': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        'Sniffing': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+MODELS = {'General_Contacts': [True,  models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+        'Sniffing': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Sniffing_head': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Sniffing_other': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Sniffing_anal': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        'Following': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+        'Following': [False]  
+                      #[True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Dominance': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Rearing': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        'Grooming': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean']
+        #'Grooming': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean']
+        
         }
 
 MODELS_PATH = {'General_Contacts': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\GeneralContact_checkpoint_epoch_610',
@@ -40,11 +43,14 @@ def get_model(behavior) -> nn.Module:
     Returns:
         - model: nn.Module, the model
     '''
-    gatencoder = MODELS[behavior][0]
-    classifier = MODELS[behavior][1]
-    readout = MODELS[behavior][2]
-
-    return models.GraphClassifier(encoder=gatencoder, classifier=classifier, readout=readout)
+    if MODELS[behavior][0]:
+        gatencoder = MODELS[behavior][1]
+        classifier = MODELS[behavior][2]
+        readout = MODELS[behavior][3]
+        model = models.GraphClassifier(encoder=gatencoder, classifier=classifier, readout=readout)
+    else:
+        model = None
+    return model
 
 def load_model(model_path, device, behaviour = 'General_Contact'):
     ''' This function loads a model from a given path and returns it.
@@ -56,10 +62,13 @@ def load_model(model_path, device, behaviour = 'General_Contact'):
         model: the loaded model
     '''
     model = get_model(behaviour) # get the model
-    checkpoint = torch.load(model_path, map_location=device) # load the model
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(device) # send the model to the device
-    model.eval() # set the model to evaluation mode
+    if model is None:
+        model = joblib.load(model_path) # load the model
+    else:
+        checkpoint = torch.load(model_path, map_location=device) # load the model
+        model.load_state_dict(checkpoint['model_state_dict'])
+        model.to(device) # send the model to the device
+        model.eval() # set the model to evaluation mode
     return model
 
 def create_csv_with_output_behaviour(output, behaviour, path):
