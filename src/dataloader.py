@@ -133,17 +133,18 @@ class DLCDataLoader:
             coords = self.cast_boundaries(coords)
             coords = self.normalize_coords(coords)
             
-            # Reshape the coordinates to have the same shape as the original data (n_frames, n_individuals, n_body_parts, 3)
-            coords = coords.reshape((coords.shape[0], data_dlc.n_individuals, data_dlc.n_body_parts, 3))
+            
 
             if self.buid_graph:
+                # Reshape the coordinates to have the same shape as the original data (n_frames, n_individuals, n_body_parts, 3)
+                coords = coords.reshape((coords.shape[0], data_dlc.n_individuals, data_dlc.n_body_parts, 3))
 
                 if self.window_size is None:
                     # Build the graph
                     node_features, edge_index, frame_mask = self.build_graph_5(coords)
                     # Build the data object
 
-                    data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviours= torch.tensor(behaviour.values, dtype=torch.long), behaviour_names = behaviour.columns)
+                    data = Data(x=node_features, edge_index=edge_index, file=name_file, frame_mask=frame_mask, behaviours= torch.tensor(behaviour.values, dtype=torch.long), behaviour_names = behaviour.columns)
                     self.data_list.append(data)
                     continue
 
@@ -158,14 +159,14 @@ class DLCDataLoader:
 
                     # Build the data object
                     if behaviour is not None:
-                        data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window.values, dtype=torch.long), behaviour_names = behaviour.columns)
+                        data = Data(x=node_features, edge_index=edge_index, file=name_file, frame_mask=frame_mask, behaviour=torch.tensor(behaviour_window.values, dtype=torch.long), behaviour_names = behaviour.columns)
                     else:
-                        data = Data(x=node_features, edge_index=edge_index, file=file, frame_mask=frame_mask)
+                        data = Data(x=node_features, edge_index=edge_index, file=name_file, frame_mask=frame_mask)
                     self.data_list.append(data)
                     if self.progress_callback:
                         self.progress_callback(j + 1, data_dlc.n_frames - self.window_size + 1)
             else:
-                self.data_list.append((data_dlc.coords, behaviour))
+                self.data_list.append((coords, behaviour, name_file))
 
 
                 
