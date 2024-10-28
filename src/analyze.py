@@ -237,22 +237,28 @@ def get_number_of_occurrences(data):
             count += 1
     return count
 
-def distribution_of_ocurrencies_per_decil(data, column):
-    ''' This function computes the distribution of the number of occurrences of a behavior per decil. '''
+def distribution_of_ocurrencies(data, column, num_interv = 6):
+    ''' This function computes the distribution of the number of occurrences of a behavior per decil. 
+    
+    Args:
+    
+    data: pd.DataFrame, the data
+    column: str, the column of the data to analyze
+    num_interv: int, the number of intervals to consider'''
     # Get the length of the data
     length = len(data)
-    # Get the decil
-    decil = length // 10
+    # Get the interval
+    interval = length // num_interv
     # Get the distribution
     distribution = []
-    for i in range(10):
-        distribution.append(data[column][i*decil:(i+1)*decil].sum())
+    for i in range(num_interv):
+        distribution.append(data[column][i*interval:(i+1)*interval].sum())
     return distribution
 
 def plot_distribution(distribution, column, path, video_name):
     ''' This function plots the distribution of the number of occurrences of a behavior per decil. '''
     plt.figure()
-    plt.bar(range(10), distribution)
+    plt.bar(range(6), distribution)
     plt.xlabel('Decil')
     plt.ylabel('Number of occurrences')
     plt.title('Distribution of the number of occurrences of ' + column + ' for video ' + video_name)
@@ -260,8 +266,13 @@ def plot_distribution(distribution, column, path, video_name):
     plt.close()
 
 
-def get_statistics(path_to_files):
-    ''' This function computes the statistics of the model outputs per video and save them in a csv file. '''
+def get_statistics(path_to_files, num_intervals = 6):
+    ''' This function computes the statistics of the model outputs per video and save them in a csv file. 
+    
+    Args:
+        path_to_files: str, the path to the folder containing the csv files
+        num_intervals: int, the number of intervals to consider for the distribution plots
+        '''
 
     # Get the list of csv files
     files = [f for f in os.listdir(path_to_files) if f.endswith('.csv')]
@@ -280,7 +291,7 @@ def get_statistics(path_to_files):
         data = pd.read_csv(os.path.join(path_to_files, file))
         video = file.split('_output')[0]
         statistics_per_video = pd.DataFrame(columns = ['video', 'behavior', 'latancy', 'duration (s)', 'duration (frames)', 'number_of_occurrences'])
-        distribution = pd.DataFrame(columns = ['Behavior', 'decil 0', 'decil 1', 'decil 2', 'decil 3', 'decil 4', 'decil 5', 'decil 6', 'decil 7', 'decil 8', 'decil 9'])
+        distribution = pd.DataFrame(columns = ['Behavior', 'interval 0', 'interval 1', 'interval 2', 'intarval 3', 'interval 4', 'interval 5'])
         for column in data.columns[1:]:
             # Get the statistics
             latancy = data[column].idxmax()
@@ -292,8 +303,8 @@ def get_statistics(path_to_files):
             #statistics = pd.concat([statistics, new_row], ignore_index=True)
             statistics_per_video = pd.concat([statistics_per_video, new_row], ignore_index=True)
         
-            decils_dist = distribution_of_ocurrencies_per_decil(data, column)
-            dist = pd.DataFrame({'Behavior': [column], 'decil 0': [decils_dist[0]], 'decil 1': [decils_dist[1]], 'decil 2': [decils_dist[2]], 'decil 3': [decils_dist[3]], 'decil 4': [decils_dist[4]], 'decil 5': [decils_dist[5]], 'decil 6': [decils_dist[6]], 'decil 7': [decils_dist[7]], 'decil 8': [decils_dist[8]], 'decil 9': [decils_dist[9]]})
+            decils_dist = distribution_of_ocurrencies(data, column)
+            dist = pd.DataFrame({'Behavior': [column], 'interval 0': [decils_dist[0]], 'interval 1': [decils_dist[1]], 'interval 2': [decils_dist[2]], 'interval 3': [decils_dist[3]], 'interval 4': [decils_dist[4]], 'interval 5': [decils_dist[5]]})
             distribution = pd.concat([distribution, dist], ignore_index=True)
 
             # Build images with the distribution 
@@ -312,3 +323,4 @@ def get_statistics(path_to_files):
     statistics.to_csv(os.path.join(path_to_files, 'statistics.csv'), index = False, sep=';')
 
     return statistics
+
