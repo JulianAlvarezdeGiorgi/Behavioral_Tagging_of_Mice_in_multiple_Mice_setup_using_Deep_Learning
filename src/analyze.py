@@ -10,26 +10,39 @@ import utils
 import os
 import matplotlib.pyplot as plt
 import joblib
+import dataloader
 
 # Define a Dictionary that contains the models for each behavior
 MODELS = {'General_Contacts': [True,  models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        'Sniffing': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+        #'Sniffing': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+        'Sniffing': [False],
+        'Sniffing_head': [False],
+        'Sniffing_body': [False],
+        #'Sniffing_anal': [False],
         # 'Sniffing_head': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Sniffing_other': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Sniffing_anal': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        #'Following': [False]  
+        'Following': [False],  
                       #[True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+        'Dominance': [False],
+        'Grooming': [False],
+
         # 'Dominance': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         # 'Rearing': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
         #'Grooming': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean']
         
         }
 
-MODELS_PATH = {'General_Contacts': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\GeneralContact_checkpoint_epoch_610',
-               'Sniffing': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\Sniffing_R_checkpoint_epoch_570',
-               #'Following': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\Following_checkpoint_epoch_442',
+MODELS_PATH = {'General_Contacts': 'models/GATmodels/GeneralContact_checkpoint_epoch_610',
+               'Sniffing': 'models/baseline_models/new_dataset/model_sniffR.pkl',
+                'Sniffing_head': 'models/baseline_models/new_dataset/model_Shead.pkl',
+                'Sniffing_body': 'models/baseline_models/new_dataset/model_Sbody.pkl',
+                #'Sniffing_anal': 'models/baseline_models/new_dataset/model_Sanus.pkl',
+               #'Sniffing': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\Sniffing_R_checkpoint_epoch_570',
+               'Following': 'models/baseline_models/new_dataset/model_poursuitR.pkl',
                 #'Grooming': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\Grooming_checkpoint_epoch_960'
-}
+                'Grooming': 'models/baseline_models/new_dataset/model_groomR.pkl',
+                'Dominance': 'models/baseline_models/new_dataset/model_domR.pkl',}
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -78,7 +91,7 @@ def create_csv_with_output_behaviour(output, behaviour, path):
         behaviour: the behaviour analyzed
         path: the path where the csv file should be saved
     '''
-    df = pd.DataFrame(output, columns = ['frame', behaviour])
+    df = pd.DataFrame(output, columns = ['Frame', behaviour])
     df.to_csv(path, index = False)
 
 def inference(behaviour, data, save = False, path_to_save = None):
@@ -86,7 +99,7 @@ def inference(behaviour, data, save = False, path_to_save = None):
         the results in the specified path.
     Args:
         behaviour: str, the behavior on which to run the inference
-        data: list of torch_geometric.data.Data, the data to run the inference on.
+        data: list of torch_geometric.data.Data or numpy arrays, the data on which to run the inference
         save: bool, whether to save the results or not
         path_to_save: str, the path where to save the results (if save is True)
     Returns:
@@ -95,73 +108,127 @@ def inference(behaviour, data, save = False, path_to_save = None):
 
     model_path = MODELS_PATH[behaviour] # get the model path
     model = load_model(model_path, DEVICE, behaviour) # load the model
-    loader = DataLoader(data, batch_size=1, shuffle=False) # create the DataLoader
+    if MODELS[behaviour][0]:
+        loader = DataLoader(data, batch_size=1, shuffle=False) # create the DataLoader
+
 
     if behaviour == 'General_Contacts':
-        outputs = pd.DataFrame(np.zeros((len(loader), 2)), columns = ['frame', behaviour]) # create the DataFrame to store the results
+        outputs = pd.DataFrame(np.zeros((len(loader), 2)), columns = ['Frame', behaviour]) # create the DataFrame to store the results
         softmax = nn.Softmax(dim=1) # create the softmax function
         print('Running inference on General_Contacts')
         for i, batch in enumerate(tqdm.tqdm(loader)):
-            outputs.loc[i, 'frame'] = int(batch.frame_mask.median().item()) # get the frame
+            outputs.loc[i, 'Frame'] = int(batch.frame_mask.median().item()) # get the frame
             with torch.no_grad():
                 out = model(batch)
                 out = softmax(out)
                 outputs.loc[i, behaviour] = out.argmax(dim=1).cpu().numpy() # get the prediction
+
     else:
-        outputs = pd.DataFrame(np.zeros((len(loader), 3)), columns = ['frame', behaviour + '_R', behaviour + '_V']) # create the DataFrame to store the results
-        softmax = nn.Softmax(dim=1)
-        print('Running inference on', behaviour + '_R')
-        for i, batch in enumerate(tqdm.tqdm(loader)):
-            outputs.loc[i, 'frame'] = int(batch.frame_mask.median().item()) 
-            with torch.no_grad():
-                out = model(batch)
-                out = softmax(out)
-                outputs.loc[i, behaviour + '_R'] = out.argmax(dim=1).cpu().numpy()
-    
-        # Swap identities
-        utils.swap_identities(data)
-        loader = DataLoader(data, batch_size=1, shuffle=False)
-        print('Running inference on', behaviour + '_V')
-        for i, batch in enumerate(tqdm.tqdm(loader)):
-            with torch.no_grad():
-                out = model(batch)
-                out = softmax(out)
-                outputs.loc[i, behaviour + '_V'] = out.argmax(dim=1).cpu().numpy()
+       
+        if MODELS[behaviour][0]:
+            outputs = pd.DataFrame(np.zeros((len(loader), 3)), columns = ['Frame', behaviour + '_R', behaviour + '_V']) # create the DataFrame to store the results
+            softmax = nn.Softmax(dim=1)
+            print('Running inference on', behaviour + '_R')
+            for i, batch in enumerate(tqdm.tqdm(loader)):
+                outputs.loc[i, 'Frame'] = int(batch.frame_mask.median().item()) 
+                with torch.no_grad():
+                    out = model(batch)
+                    out = softmax(out)
+                    outputs.loc[i, behaviour + '_R'] = out.argmax(dim=1).cpu().numpy()
+        
+            # Swap identities
+            utils.swap_identities(data)
+            loader = DataLoader(data, batch_size=1, shuffle=False)
+            print('Running inference on', behaviour + '_V')
+            for i, batch in enumerate(tqdm.tqdm(loader)):
+                with torch.no_grad():
+                    out = model(batch)
+                    out = softmax(out)
+                    outputs.loc[i, behaviour + '_V'] = out.argmax(dim=1).cpu().numpy()
+
+        else:
+            outputs = pd.DataFrame(np.zeros((len(data), 3)), columns = ['Frame', behaviour + '_R', behaviour + '_V'])
+            outputs['Frame'] = range(len(data))
+            coords_R = data.copy()
+            coords_ind2 = data[:, data.shape[1]//2:].copy()
+            data[:, data.shape[1]//2:] = data[:, :data.shape[1]//2]
+            data[:, :data.shape[1]//2] = coords_ind2
+
+            coords_V = data.copy()
+
+            del data
+
+            print('Running inference on', behaviour + '_R')
+            
+            y_pred_R = model.predict(coords_R)
+            outputs[behaviour + '_R'] = y_pred_R
+
+            print('Running inference on', behaviour + '_V')
+            y_pred_V = model.predict(coords_V)
+            outputs[behaviour + '_V'] = y_pred_V
+            
     if save:
         outputs.to_csv(path_to_save, index = False)
     else:
         return outputs
+    
+
+  
 
 def inference_all_behaviors(path_to_data, path_to_save):
     ''' This function runs the inference on all behaviors, and save
         the results in the specified path.
     Args:
-        path_to_data: str, the path to the dataset to run the inference on
+        path_to_data: str, the path to the dataset to run the inference on, it should be a folder with a .pkl file and the .h5 files
         path_to_save: str, the path where to save the results
     ''' 
-    data = torch.load(path_to_data, map_location=DEVICE) # load the data
+
+    data_coords = dataloader.DLCDataLoader(path_to_data, build_graph=False) # create the DataLoader
+    data_graph = dataloader.DLCDataLoader(path_to_data, load_dataset=True) # create the DataLoader
+    #torch.load(path_to_data, map_location=DEVICE) # load the data
+    
     # Check if there're different videos
-    videos = np.unique([data.file for data in data])
-    data_per_video = []
+    videos_graph = np.unique([data.file for data in data_graph])
+    videos_coords = np.unique([data[2] for data in data_coords])
+
+    videos_graph = sorted(videos_graph)
+    videos_coords = sorted(videos_coords)
+
+    videos = videos_graph if videos_graph == videos_coords else print('The videos are different in the two datasets')
+
+    del videos_graph, videos_coords
+
+    data_per_video_graph = []
+    data_per_video_coords = []
+
     for video in videos:
-        data_per_video.append([d for d in data if d.file == video])
-
-    for i, data in enumerate(data_per_video):
-        video_name = videos[i].split('DLC')[0]
-        print('Running inference on video', video_name)
+        data_per_video_graph.append([d for d in data_graph if d.file == video])
+        data_per_video_coords.append([d[0] for d in data_coords.data_list if d[2] == video])
+    for i, video in enumerate(videos):
+        print('Running inference on video', video)
         outputs = []
-        for behaviour in MODELS_PATH.keys():
-            outputs.append(inference(behaviour, data, save = False))
-        # Concatenate the outputs using the column 'frame' as index
-        # Set the column 'frame' as index
-        outputs = [output.set_index('frame') for output in outputs]
-        # discard the column 'frame' from all the outputs except the first one
-        #outputs = [output.drop(columns = ['frame']) for output in outputs[1:]]
-        # Concatenate the outputs
-        outputs = pd.concat(outputs, axis=1)
-        # Save the outputs
-        outputs.to_csv(os.path.join(path_to_save, video_name + '_output.csv'))
 
+        for behaviour in MODELS.keys():
+            if MODELS[behaviour][0]:
+                outputs.append(inference(behaviour, data_per_video_graph[i], save = False))
+            else:
+                outputs.append(inference(behaviour, data_per_video_coords[i][0], save = False))
+        
+        # Concatenate the outputs using the column 'frame' as index
+        outputs = [output.set_index('Frame') for output in outputs] # Set the column 'Frame' as index
+        
+        # Concatenate the outputs
+        output = pd.concat(outputs, axis=1) 
+
+        # Sort by frame
+        output.sort_values(by = 'Frame', inplace = True)
+
+        # Fill the missing values with 0
+        output.fillna(0, inplace = True)
+
+        # Save the outputs
+        output.to_csv(os.path.join(path_to_save, video + '_output.csv'))
+        
 def get_number_of_occurrences(data):
     ''' This function returns the number of occurrences of a behavior in the data. i.e. the number of times a 0 is followed by a 1. '''
     count = 0

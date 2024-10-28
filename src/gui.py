@@ -238,7 +238,9 @@ class InferenceFrame(tk.Frame):
 
     def browse_dataset(self):
         """Open a file dialog to select the dataset file."""
-        dataset_path = filedialog.askopenfilename(filetypes=[("Torch files", "*.pkl")])
+        # Must be a folder containing the dataset files
+        dataset_path = filedialog.askdirectory()
+        # filedialog.askopenfilename(filetypes=[("Torch files", "*.pkl")])
         if dataset_path:
             self.dataset_entry.delete(0, tk.END)
             self.dataset_entry.insert(0, dataset_path)
