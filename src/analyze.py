@@ -12,69 +12,71 @@ import matplotlib.pyplot as plt
 import joblib
 import dataloader
 
-# Define a Dictionary that contains the models for each behavior
-MODELS = {'General_Contacts': [True,  models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        #'Sniffing': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        'Sniffing': [False],
-        'Sniffing_head': [False],
-        'Sniffing_body': [False],
-        #'Sniffing_anal': [False],
-        # 'Sniffing_head': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        # 'Sniffing_other': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        # 'Sniffing_anal': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        'Following': [False],  
-                      #[True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        'Dominance': [False],
-        'Grooming': [False],
+GAT_MASK = {'General_Contacts': "GAT", 'Sniffing': "GAT", 'Sniffing_head': "Linear", 'Sniffing_body': "Linear", 'Sniffing_anogenital': "Linear", 'Following': "GAT", 'Dominance': "GAT", 'Grooming': "GAT"}
 
-        # 'Dominance': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        # 'Rearing': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
-        #'Grooming': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean']
+
+# MODELS = {#'General_Contacts': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         #'General_Contacts': [False],
+#         #'Sniffing': [ models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         #'Sniffing': [False],
+#         #'Sniffing_head': [False],
+#         #'Sniffing_body': [False],
+#         #'Sniffing_anal': [False],
+#         # 'Sniffing_head': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         # 'Sniffing_other': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         # 'Sniffing_anal': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         #'Following': [False],  
+#         #'Following': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         #'Dominance': [False],
+#         #'Grooming': [False],
+
+#         #'Dominance': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         # 'Rearing': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
+#         #'Grooming': [True, models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean']
         
-        }
+#         }
 
-MODELS_PATH = {'General_Contacts': 'models/GATmodels/GeneralContact_checkpoint_epoch_610',
-               'Sniffing': 'models/baseline_models/new_dataset/model_sniffR.pkl',
-                'Sniffing_head': 'models/baseline_models/new_dataset/model_Shead.pkl',
-                'Sniffing_body': 'models/baseline_models/new_dataset/model_Sbody.pkl',
-                #'Sniffing_anal': 'models/baseline_models/new_dataset/model_Sanus.pkl',
-               #'Sniffing': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\Sniffing_R_checkpoint_epoch_570',
-               'Following': 'models/baseline_models/new_dataset/model_poursuitR.pkl',
-                #'Grooming': r'C:\Users\jalvarez\Documents\Code\GitHubCOde\Behavioral_Tagging_of_Mice_in_multiple_Mice_dataset_using_Deep_Learning\models\GATmodels\Grooming_checkpoint_epoch_960'
-                'Grooming': 'models/baseline_models/new_dataset/model_groomR.pkl',
-                'Dominance': 'models/baseline_models/new_dataset/model_domR.pkl',}
-
-
+MODELS_PATH = {'General_Contacts': ['models/GATmodels/GeneralContact_checkpoint_epoch_610', 'models/baseline_models/new_dataset/model_gencont.pkl'],
+               'Sniffing': ['models/GATmodels/Sniffing_R_checkpoint_epoch_570', 'models/baseline_models/new_dataset/model_sniffR.pkl'],
+                'Sniffing_head': [None,'models/baseline_models/new_dataset/model_Shead.pkl'],
+                'Sniffing_body': [None,'models/baseline_models/new_dataset/model_Sbody.pkl'],
+                'Sniffing_anogenital': [None,'models/baseline_models/new_dataset/model_Sanus.pkl'],
+                'Following': ['models/GATmodels/Following_checkpoint_epoch_442', 'models/baseline_models/new_dataset/model_poursuitR.pkl'],
+                'Dominance':  ['models/GATmodels/Dominance_epoch_750','models/baseline_models/new_dataset/model_domR.pkl'],
+                'Grooming': ['models/GATmodels/Grooming_checkpoint_epoch_960','models/baseline_models/new_dataset/model_groomR.pkl'],}
+             
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 ### Function that returns the model based on the behavior
-def get_model(behavior) -> nn.Module:
+def get_model(behavior, gat = True) -> nn.Module:
     ''' Returns the model based on the behavior.
         Possible behaviors: 'General_Contact', 'Sniffing', 'Sniffing_head', 'Sniffing_other', 'Sniffing_anal', 'Poursuit', 'Dominance', 'Rearing', 'Grooming'
     Parameters:
         - behavior: str, the behavior of the model
+        - gat: bool, whether the model is a GAT model or not
     Returns:
         - model: nn.Module, the model
     '''
-    if MODELS[behavior][0]:
-        gatencoder = MODELS[behavior][1]
-        classifier = MODELS[behavior][2]
-        readout = MODELS[behavior][3]
+    if gat:
+        gatencoder = models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2)
+        classifier =  models.ClassificationHead(n_latent=64, nhid = 32, nout = 2)
+        readout = 'mean'
         model = models.GraphClassifier(encoder=gatencoder, classifier=classifier, readout=readout)
     else:
         model = None
     return model
 
-def load_model(model_path, device, behaviour = 'General_Contact'):
+def load_model(model_path, device, behaviour = 'General_Contact', gat = True):
     ''' This function loads a model from a given path and returns it.
     Args:
         model_path: path to the model
         device: device on which the model should be loaded
         behaviour: behaviour of the model
+        gat: whether the model is a GAT model or not
     Returns:
         model: the loaded model
     '''
-    model = get_model(behaviour) # get the model
+    model = get_model(behaviour, gat) # get the model
     if model is None:
         model = joblib.load(model_path) # load the model
     else:
@@ -94,38 +96,52 @@ def create_csv_with_output_behaviour(output, behaviour, path):
     df = pd.DataFrame(output, columns = ['Frame', behaviour])
     df.to_csv(path, index = False)
 
-def inference(behaviour, data, save = False, path_to_save = None):
+def inference(behaviour, data, gat = True, save = False, path_to_save = None, video = None):
     ''' This function runs the inference on the specified behavior, and save
         the results in the specified path.
     Args:
         behaviour: str, the behavior on which to run the inference
         data: list of torch_geometric.data.Data or numpy arrays, the data on which to run the inference
+        gat: bool, whether to use the GAT model or not (if False, the model is the Linear model)
         save: bool, whether to save the results or not
         path_to_save: str, the path where to save the results (if save is True)
+        video: str, the name of the video (if save is True)
     Returns:
         outputs: pd.DataFrame, the results of the inference
     ''' 
-
-    model_path = MODELS_PATH[behaviour] # get the model path
-    model = load_model(model_path, DEVICE, behaviour) # load the model
-    if MODELS[behaviour][0]:
+    if gat:
+        model_path = MODELS_PATH[behaviour][0] # get the model path
+    else:
+        model_path = MODELS_PATH[behaviour][1] # get the model path
+    model = load_model(model_path, DEVICE, behaviour, gat) # load the model
+    if gat:
         loader = DataLoader(data, batch_size=1, shuffle=False) # create the DataLoader
 
 
     if behaviour == 'General_Contacts':
-        outputs = pd.DataFrame(np.zeros((len(loader), 2)), columns = ['Frame', behaviour]) # create the DataFrame to store the results
-        softmax = nn.Softmax(dim=1) # create the softmax function
-        print('Running inference on General_Contacts')
-        for i, batch in enumerate(tqdm.tqdm(loader)):
-            outputs.loc[i, 'Frame'] = int(batch.frame_mask.median().item()) # get the frame
-            with torch.no_grad():
-                out = model(batch)
-                out = softmax(out)
-                outputs.loc[i, behaviour] = out.argmax(dim=1).cpu().numpy() # get the prediction
+        if gat:
+            outputs = pd.DataFrame(np.zeros((len(loader), 2)), columns = ['Frame', behaviour]) # create the DataFrame to store the results
+            softmax = nn.Softmax(dim=1) # create the softmax function
+            print('Running inference on General_Contacts')
+            for i, batch in enumerate(tqdm.tqdm(loader)):
+                outputs.loc[i, 'Frame'] = int(batch.frame_mask.median().item()) # get the frame
+                with torch.no_grad():
+                    out = model(batch)
+                    out = softmax(out)
+                    outputs.loc[i, behaviour] = out.argmax(dim=1).cpu().numpy() # get the prediction
+
+        else:
+            outputs = pd.DataFrame(np.zeros((len(data), 2)), columns = ['Frame', behaviour])
+            outputs['Frame'] = range(len(data))
+
+            print('Running inference on General_Contacts')
+            
+            y_pred = model.predict(data)
+            outputs[behaviour] = y_pred
 
     else:
        
-        if MODELS[behaviour][0]:
+        if gat:
             outputs = pd.DataFrame(np.zeros((len(loader), 3)), columns = ['Frame', behaviour + '_R', behaviour + '_V']) # create the DataFrame to store the results
             softmax = nn.Softmax(dim=1)
             print('Running inference on', behaviour + '_R')
@@ -168,14 +184,14 @@ def inference(behaviour, data, save = False, path_to_save = None):
             outputs[behaviour + '_V'] = y_pred_V
             
     if save:
-        outputs.to_csv(path_to_save, index = False)
+        outputs.to_csv(os.path.join(path_to_save, video + '_' + behaviour + '_output.csv'), index = False)
     else:
         return outputs
     
 
   
 
-def inference_all_behaviors(path_to_data, path_to_save):
+def inference_all_behaviors(path_to_data, path_to_save, gat_mask = GAT_MASK):
     ''' This function runs the inference on all behaviors, and save
         the results in the specified path.
     Args:
@@ -194,7 +210,7 @@ def inference_all_behaviors(path_to_data, path_to_save):
     videos_graph = sorted(videos_graph)
     videos_coords = sorted(videos_coords)
 
-    videos = videos_graph if videos_graph == videos_coords else print('The videos are different in the two datasets')
+    videos = videos_graph if videos_graph == videos_coords else print('The videos are different in the two datasets', videos_graph, videos_coords)
 
     del videos_graph, videos_coords
 
@@ -208,11 +224,11 @@ def inference_all_behaviors(path_to_data, path_to_save):
         print('Running inference on video', video)
         outputs = []
 
-        for behaviour in MODELS.keys():
-            if MODELS[behaviour][0]:
-                outputs.append(inference(behaviour, data_per_video_graph[i], save = False))
+        for behaviour in MODELS_PATH.keys():
+            if gat_mask[behaviour]:
+                outputs.append(inference(behaviour, data_per_video_graph[i], save = False, gat = True))
             else:
-                outputs.append(inference(behaviour, data_per_video_coords[i][0], save = False))
+                outputs.append(inference(behaviour, data_per_video_coords[i][0], save = False, gat = False))
         
         # Concatenate the outputs using the column 'frame' as index
         outputs = [output.set_index('Frame') for output in outputs] # Set the column 'Frame' as index
@@ -323,4 +339,3 @@ def get_statistics(path_to_files, num_intervals = 6):
     statistics.to_csv(os.path.join(path_to_files, 'statistics.csv'), index = False, sep=';')
 
     return statistics
-

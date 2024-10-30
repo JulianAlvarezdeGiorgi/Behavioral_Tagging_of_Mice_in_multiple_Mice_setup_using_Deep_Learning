@@ -193,8 +193,18 @@ class InferenceFrame(tk.Frame):
         self.behaviour_label.pack()
         self.behaviour_var = tk.StringVar()
         self.behaviour_dropdown = ttk.Combobox(self, textvariable=self.behaviour_var)
-        self.behaviour_dropdown['values'] = list(analyze.MODELS.keys()) + ['All']
+        self.behaviour_dropdown['values'] = list(analyze.MODELS_PATH.keys()) + ['All']
         self.behaviour_dropdown.pack()
+
+        # Behavior-to-model mapping
+        self.behavior_model_mapping = {behavior: tk.StringVar(value=analyze.GAT_MASK[behavior]) for behavior in analyze.MODELS_PATH.keys()}
+
+        # Frame to hold individual behavior model selectors
+        self.all_behaviors_frame = tk.Frame(self)
+        self.all_behaviors_frame.pack()
+        
+        # Bind event to update model selection based on behavior selection
+        self.behaviour_dropdown.bind("<<ComboboxSelected>>", self.on_behavior_select)
 
         # Dataset path input
         self.dataset_label = tk.Label(self, text="Select Dataset:")
@@ -236,6 +246,38 @@ class InferenceFrame(tk.Frame):
         # Redirect print statements to log text widget
         sys.stdout = TextRedirector(self.log_text)
 
+    def on_behavior_select(self, event):
+        selected_behavior = self.behaviour_var.get()
+        
+        # Clear existing widgets in all_behaviors_frame
+        for widget in self.all_behaviors_frame.winfo_children():
+            widget.destroy()
+        
+        if selected_behavior == "All":
+            # Show options for each behavior
+            for behavior in analyze.MODELS_PATH.keys():
+                label = tk.Label(self.all_behaviors_frame, text=f"{behavior}:")
+                label.pack(anchor="w")
+                
+                model_dropdown = ttk.Combobox(self.all_behaviors_frame, textvariable=self.behavior_model_mapping[behavior])
+                model_dropdown['values'] = ["GAT", "Linear"]
+                model_dropdown.pack(anchor="w")
+        else:
+            # Show only one dropdown for the selected behavior
+            label = tk.Label(self.all_behaviors_frame, text=f"Select Model for {selected_behavior}:")
+            label.pack(anchor="w")
+            
+            model_dropdown = ttk.Combobox(self.all_behaviors_frame, textvariable=self.behavior_model_mapping[selected_behavior])
+            model_dropdown['values'] = ["GAT", "Linear"]
+            model_dropdown.pack(anchor="w")
+
+    def get_selected_models(self):
+        # Access selected models for each behavior
+        selected_models = {behavior: model_var.get() for behavior, model_var in self.behavior_model_mapping.items()}
+        print("Selected models:", selected_models)
+        return selected_models
+
+
     def browse_dataset(self):
         """Open a file dialog to select the dataset file."""
         # Must be a folder containing the dataset files
@@ -268,9 +310,15 @@ class InferenceFrame(tk.Frame):
 
             # Run the inference
             if behaviour == 'All':
-                analyze.inference_all_behaviors(path_to_data, path_to_save)
+
+                binary_mask = {behavior: (self.behavior_model_mapping[behavior].get() == 'GAT') for behavior in analyze.MODELS_PATH.keys()}
+                analyze.inference_all_behaviors(path_to_data, path_to_save, gat_mask=binary_mask)
+             
             else:
-                analyze.inference(behaviour, path_to_data, save=True, path_to_save=path_to_save)
+                # Check if a model selection was made for the single selected behavior
+                model_selected = self.behavior_model_mapping[behaviour].get()
+                analyze.inference(behaviour, path_to_data, save=True, path_to_save=path_to_save, gat = model_selected == 'GAT')
+                
 
             print(f"Inference completed. Results saved at {path_to_save}.")
 
