@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import joblib
 import dataloader
 
-GAT_MASK = {'General_Contacts': "GAT", 'Sniffing': "GAT", 'Sniffing_head': "Linear", 'Sniffing_body': "Linear", 'Sniffing_anogenital': "Linear", 'Following': "GAT", 'Dominance': "GAT", 'Grooming': "GAT"}
+GAT_MASK = {'General_Contacts': "GAT", 'Sniffing': "Linear", 'Sniffing_head': "Linear", 'Sniffing_body': "Linear", 'Sniffing_anogenital': "Linear", 'Following': "GAT", 'Dominance': "Linear", 'Grooming': "GAT"}
 
 
 # MODELS = {#'General_Contacts': [models.GATEncoder(nout = 64, nhid=32, attention_heads = 2, n_in = 4, n_layers=4, dropout=0.2), models.ClassificationHead(n_latent=64, nhid = 32, nout = 2), 'mean'],
