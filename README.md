@@ -11,26 +11,9 @@ This repository addresses these challenges by providing an automated solution fo
 
 ## Pose Estimation and Behavior Recognition Pipeline
 
-| **Pose Estimation** (DLC GUI) | **Behavior Recognition** (Developed GUI) |
-|-------------------------------|------------------------------------------|
-| ![Videos](images/video-icon.png) | ![Body Parts](images/body-parts-icon.png) |
-| **VIDEOS**                    |                                          |
-| ![DLC Analysis](images/dlc-analysis-icon.png) | ![Behavior Recognition](images/behavior-recognition-icon.png) |
-| **DLC ANALYSIS**              | **BEHAVIOR RECOGNITION**                 |
-| **Training** <br> ![Body Parts](images/body-parts-icon.png) | **Training** <br> ![Manual Notation](images/manual-notation-icon.png) |
-| **TRACKLETS CORRECTION** <br> ![Tracklets Correction](images/tracklets-correction-icon.png) | **BEHAVIOR CORRECTION** <br> ![Behavior Correction](images/behavior-correction-icon.png) |
-| **OUTPUT** <br> ![Output CSV](images/output-csv-icon.png) | **OUTPUT** <br> ![Output CSV](images/output-csv-icon.png) |
+![Pipeline Overview](images/pipeline-overview.png)
 
 ---
-
-## Process Flow
-
-1. ![Video 1](images/video1.png)
-2. ➡️
-3. ![Video 2](images/video2.png)
-4. ➡️
-5. ![Final Output](images/final-output.png)
-
 
 ## Project Structure:
 ```
